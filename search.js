@@ -1,145 +1,18 @@
-// ---------------------- Helper Functions ----------------------
-function showSection(sectionId) {
-  document.querySelectorAll("section").forEach(sec => sec.classList.add("hidden"));
-  document.getElementById(sectionId).classList.remove("hidden");
-}
-
-// ---------------------- SEARCH FUNCTIONALITY ----------------------
-document.getElementById("searchForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const origin = document.getElementById("origin").value.trim();
-  const destination = document.getElementById("destination").value.trim();
-  const date = document.getElementById("date").value;
-
-  if (!origin || !destination || !date) {
-    alert("Please fill all fields.");
-    return;
-  }
-
-  showSection("results-section");
-  const resultsDiv = document.getElementById("results");
-  resultsDiv.innerHTML = "<p>Loading flights...</p>";
-
-  try {
-    const response = await fetch(`http://127.0.0.1:8000/flights/search?origin=${origin}&destination=${destination}&date=${date}`);
-    const flights = await response.json();
-
-    if (flights.length === 0) {
-      resultsDiv.innerHTML = "<p>No flights found for the selected route.</p>";
-      return;
-    }
-
-    resultsDiv.innerHTML = flights.map(f => `
-      <div class="flight-card">
-        <h3>${f.airline} - ${f.flight_number}</h3>
-        <p>${f.origin} → ${f.destination}</p>
-        <p>Departure: ${f.departure_time}</p>
-        <p>Duration: ${f.duration}</p>
-        <p>💰 Price: ₹${f.dynamic_price}</p>
-        <button onclick="bookFlight('${f.flight_id}', ${f.dynamic_price}, '${f.flight_number}')">Book Now</button>
-      </div>
-    `).join("");
-  } catch (error) {
-    resultsDiv.innerHTML = "<p>⚠️ Error fetching flights. Check backend connection.</p>";
-    console.error(error);
-  }
-});
-
-document.getElementById("backToSearch").addEventListener("click", () => {
-  showSection("search-section");
-});
-
-// ---------------------- BOOKING FUNCTIONALITY ----------------------
-let selectedFlight = null;
-
-function bookFlight(id, price, flightNumber) {
-  selectedFlight = { id, price, flightNumber };
-  showSection("booking-section");
-}
-
-document.getElementById("bookingForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  if (!selectedFlight) {
-    alert("Please select a flight first.");
-    showSection("search-section");
-    return;
-  }
-
-  const passenger = {
-    name: document.getElementById("name").value.trim(),
-    email: document.getElementById("email").value.trim(),
-    age: parseInt(document.getElementById("age").value)
-  };
-
-  try {
-    const response = await fetch("http://127.0.0.1:8000/book", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        flight_id: selectedFlight.id,
-        passenger,
-        price: selectedFlight.price
-      })
-    });
-
-    if (!response.ok) throw new Error("Booking failed");
-
-    const data = await response.json();
-    localStorage.setItem("bookingInfo", JSON.stringify(data));
-    showConfirmation(data);
-  } catch (error) {
-    alert("Booking failed. Check backend connection.");
-    console.error(error);
-  }
-});
-
-document.getElementById("backToResults").addEventListener("click", () => {
-  showSection("results-section");
-});
-
-// ---------------------- CONFIRMATION FUNCTIONALITY ----------------------
-function showConfirmation(data) {
-  showSection("confirmation-section");
-
-  const div = document.getElementById("details");
-  div.innerHTML = `
-    <p><strong>PNR:</strong> ${data.pnr}</p>
-    <p><strong>Flight:</strong> ${data.flight_number}</p>
-    <p><strong>Passenger:</strong> ${data.passenger.name}</p>
-    <p><strong>Price:</strong> ₹${data.price}</p>
-  `;
-}
-
-document.getElementById("downloadJson").addEventListener("click", () => {
-  const booking = JSON.parse(localStorage.getItem("bookingInfo"));
-  const blob = new Blob([JSON.stringify(booking, null, 2)], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "booking_receipt.json";
-  a.click();
-});
-
-document.getElementById("downloadPdf").addEventListener("click", async () => {
-  const booking = JSON.parse(localStorage.getItem("bookingInfo"));
-  try {
-    const response = await fetch("http://127.0.0.1:8000/receipt/pdf", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(booking)
-    });
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "booking_receipt.pdf";
-    a.click();
-  } catch (error) {
-    alert("Failed to download PDF. Check backend.");
-  }
-});
-
-document.getElementById("backToHome").addEventListener("click", () => {
-  location.reload();
-});
+const API="http://127.0.0.1:8000";const $=id=>document.getElementById(id);let selectedFlight=null,currentBooking=null;
+function showSection(id){["search-section","results-section","booking-section","confirmation-section"].forEach(x=>$(x).classList.add("hidden"));$(id).classList.remove("hidden")}
+function esc(v){return String(v).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
+function dateText(v){return new Date(v).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})}
+async function request(path,opts={}){const r=await fetch(API+path,{...opts,headers:{"Content-Type":"application/json",...(opts.headers||{})}});const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.detail||"Request failed");return b}
+$("date").value=new Date().toISOString().slice(0,10);
+function renderFlights(fs){$("results").innerHTML=fs.length?fs.map(f=>`<article class="flight-card"><div><h3>${esc(f.airline)} · ${esc(f.flight_number)}</h3><p><b>${esc(f.source)}</b> → <b>${esc(f.destination)}</b></p><p>Departure: ${dateText(f.departure_time)}</p><p>Duration: ${f.duration_minutes} min · Seats: ${f.available_seats}/${f.total_seats}</p><p>Demand: ${f.demand}% · Tier: ${esc(f.pricing_tier)}</p></div><div class="price-box"><strong>₹${Number(f.dynamic_price).toLocaleString("en-IN")}</strong><span>dynamic price / seat</span><button onclick="selectFlight(${f.flight_id})">Book Now</button></div></article>`).join(""):"<p>No flights found.</p>"}
+async function search(showAll=false){$("message").textContent="Loading...";try{const o=$("origin").value.trim(),d=$("destination").value.trim(),date=$("date").value;if(!showAll&&(!o||!d||!date))throw new Error("Enter origin, destination and date.");const path=showAll?"/db/flights":`/db/flights?origin=${encodeURIComponent(o)}&destination=${encodeURIComponent(d)}&date=${date}`;const fs=await request(path);renderFlights(fs);$("message").textContent=`${fs.length} flight(s) found.`;showSection("results-section")}catch(e){$("message").textContent="⚠️ "+e.message}}
+$("searchForm").addEventListener("submit",e=>{e.preventDefault();search()});$("showAll").addEventListener("click",()=>search(true));$("backToSearch").addEventListener("click",()=>showSection("search-section"));$("backToResults").addEventListener("click",()=>showSection("results-section"));
+window.selectFlight=async id=>{try{const fs=await request("/db/flights");selectedFlight=fs.find(f=>f.flight_id===id);if(!selectedFlight)throw new Error("Flight not found");$("selectedFlight").innerHTML=`<b>${esc(selectedFlight.airline)} · ${esc(selectedFlight.flight_number)}</b><span>${esc(selectedFlight.source)} → ${esc(selectedFlight.destination)}</span><span>₹${Number(selectedFlight.dynamic_price).toLocaleString("en-IN")} / seat</span>`;showSection("booking-section")}catch(e){alert(e.message)}};
+$("bookingForm").addEventListener("submit",async e=>{e.preventDefault();if(!selectedFlight)return;const p={flight_id:selectedFlight.flight_id,passenger_name:$("name").value.trim(),passenger_email:$("email").value.trim()||null,passenger_phone:$("phone").value.trim()||null,passenger_age:$("age").value?Number($("age").value):null,seat_number:$("seat").value.trim()||null,force_payment_success:true};try{const b=await request("/db/booking",{method:"POST",body:JSON.stringify(p)});currentBooking=b;localStorage.setItem("bookingInfo",JSON.stringify(b));renderConfirmation(b);loadHistory()}catch(e){alert("Booking failed: "+e.message)}});
+function renderConfirmation(b){$("details").innerHTML=`<p><b>PNR:</b> ${esc(b.pnr)}</p><p><b>Flight:</b> ${esc(b.flight_number)}</p><p><b>Passenger:</b> ${esc(b.passenger_name)}</p><p><b>Seat:</b> ${esc(b.seat_number)}</p><p><b>Price:</b> ₹${Number(b.price_per_seat).toLocaleString("en-IN")}</p><p><b>Status:</b> ${esc(b.status)}</p>`;showSection("confirmation-section")}
+function download(blob,name){const u=URL.createObjectURL(blob),a=document.createElement("a");a.href=u;a.download=name;a.click();URL.revokeObjectURL(u)}
+$("downloadJson").addEventListener("click",()=>{if(currentBooking)download(new Blob([JSON.stringify(currentBooking,null,2)],{type:"application/json"}),"booking_receipt.json")});
+$("downloadPdf").addEventListener("click",async()=>{if(!currentBooking)return;const r=await fetch(API+"/receipt/pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(currentBooking)});if(!r.ok){alert("PDF generation failed");return}download(await r.blob(),"booking_receipt.pdf")});
+$("backToHome").addEventListener("click",()=>{currentBooking=null;selectedFlight=null;$("bookingForm").reset();showSection("search-section")});$("refreshHistory").addEventListener("click",loadHistory);
+async function loadHistory(){try{const bs=await request("/db/bookings?limit=10");$("history").innerHTML=bs.length?bs.map(b=>`<div class="history-card"><div><b>${esc(b.pnr)}</b><span>${esc(b.flight_number)} · Seat ${esc(b.seat_number)}</span><small>${dateText(b.booking_date)}</small></div><div><b>₹${Number(b.total_price).toLocaleString("en-IN")}</b><button onclick="cancelBooking('${esc(b.pnr)}')">Cancel</button></div></div>`).join(""):"<p>No bookings yet.</p>"}catch(e){$("history").innerHTML="<p>⚠️ "+esc(e.message)+"</p>"}}
+window.cancelBooking=async pnr=>{if(!confirm("Cancel booking "+pnr+"?"))return;try{await request("/db/booking/"+encodeURIComponent(pnr),{method:"DELETE"});await loadHistory();alert("Booking cancelled.")}catch(e){alert("Cancellation failed: "+e.message)}};loadHistory();
