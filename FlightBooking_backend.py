@@ -18,15 +18,6 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship, Session
 # Basic FastAPI app
 # ----------------------------
 app = FastAPI(title="Flight Booking Simulator with Dynamic Pricing")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # ----------------------------
 # --- Original in-memory models & endpoints (kept) ---
 # ----------------------------
