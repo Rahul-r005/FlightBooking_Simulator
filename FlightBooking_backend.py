@@ -622,6 +622,31 @@ def db_create_booking(req: DBBookingRequest, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Booking failed: {str(e)}")
 
+@app.post("/receipt/pdf")
+def receipt_pdf(data: dict):
+    if canvas is None:
+        raise HTTPException(status_code=500, detail="Install reportlab: pip install reportlab")
+    buffer = io.BytesIO()
+    pdf = canvas.Canvas(buffer)
+    pdf.setTitle("Flight Booking Receipt")
+    pdf.setFont("Helvetica-Bold", 18)
+    pdf.drawString(60, 780, "Flight Booking Simulator")
+    pdf.setFont("Helvetica", 11)
+    y = 740
+    for key, value in data.items():
+        pdf.drawString(60, y, f"{key}: {value}")
+        y -= 22
+        if y < 60:
+            pdf.showPage()
+            y = 780
+    pdf.save()
+    buffer.seek(0)
+    return Response(
+        content=buffer.read(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=booking_receipt.pdf"},
+    )
+
 @app.post("/db/bookings/{pnr}/pay", response_model=DBBookingResponse)
 def db_pay_booking(pnr: str, force_success: Optional[bool] = None, db: Session = Depends(get_db)):
     booking = db.query(BookingModel).filter(BookingModel.pnr == pnr).first()
