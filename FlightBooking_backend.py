@@ -317,6 +317,15 @@ class BookingModel(Base):
     price_per_seat = Column(DECIMAL(10,2), nullable=True)
     total_price = Column(DECIMAL(12,2), nullable=True)
 
+class PaymentModel(Base):
+    __tablename__ = "Payments"
+    payment_id = Column(Integer, primary_key=True, autoincrement=True)
+    booking_id = Column(Integer, ForeignKey("Bookings.booking_id"), nullable=False)
+    amount = Column(DECIMAL(12,2), nullable=False)
+    payment_status = Column(String(20), default="Success")
+    payment_method = Column(String(30), default="Simulated")
+    payment_date = Column(DateTime, server_default=func.now())
+
 class FareHistoryModel(Base):
     __tablename__ = "FareHistory"
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -595,7 +604,7 @@ def db_create_booking(req: DBBookingRequest, db: Session = Depends(get_db)):
             booking = BookingModel(
                 flight_id=flight.flight_id,
                 passenger_id=passenger.passenger_id,
-                seat_number=req.seat_number,
+                seat_number=seat_number,
                 status="Confirmed",
                 pnr=pnr,
                 price_per_seat=price_per_seat,
