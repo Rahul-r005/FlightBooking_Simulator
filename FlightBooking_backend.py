@@ -260,12 +260,18 @@ def simulate_demand():
 # ----------------------------
 
 DB_USER = os.getenv("DB_USER", "root")
-DB_PASS = os.getenv("DB_PASS", "3107")
-DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PASS = os.getenv("DB_PASS", "REviTDhoHGWHerRuFQmMkiLdXeakKgpF")
+DB_HOST = os.getenv("DB_HOST", "mysql-tfku.railway.internal")
 DB_PORT = os.getenv("DB_PORT", "3306")
-DB_NAME = os.getenv("DB_NAME", "flight_booking") 
+DB_NAME = os.getenv("DB_NAME", "railway") 
 
-DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+DATABASE_URL = os.getenv("mysql://root:REviTDhoHGWHerRuFQmMkiLdXeakKgpF@mysql-tfku.railway.internal:3306/railway")
+
+if not DATABASE_URL:
+    DATABASE_URL = (
+        f"mysql+pymysql://{DB_USER}:{DB_PASS}"
+        f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    )
 
 # SQLAlchemy setup
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
