@@ -19,6 +19,14 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship, Session
 # ----------------------------
 app = FastAPI(title="Flight Booking Simulator with Dynamic Pricing")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # ----------------------------
 # --- Original in-memory models & endpoints (kept) ---
 # ----------------------------
@@ -252,12 +260,12 @@ def simulate_demand():
 # ----------------------------
 
 DB_USER = os.getenv("DB_USER", "root")
-DB_PASS = os.getenv("DB_PASS", 3107)
+DB_PASS = os.getenv("DB_PASS", "3107")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "3306")
 DB_NAME = os.getenv("DB_NAME", "flight_booking") 
 
-DATABASE_URL = f"mysql+pymysql://root:3107@localhost:3306/flight_booking"
+DATABASE_URL = f"mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 # SQLAlchemy setup
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
@@ -327,6 +335,22 @@ class DBBookingRequest(BaseModel):
     passenger_phone: Optional[str] = None
     seat_number: Optional[str] = None
     force_payment_success: Optional[bool] = None
+
+class DBFlightResponse(BaseModel):
+    flight_id: int
+    airline: str
+    flight_number: str
+    source: str
+    destination: str
+    departure_time: datetime
+    arrival_time: datetime
+    total_seats: int
+    available_seats: int
+    duration_minutes: int
+    dynamic_price: float
+    base_fare: float
+    pricing_tier: str
+    demand: int
 
 class DBBookingResponse(BaseModel):
     booking_id: int
@@ -426,6 +450,108 @@ def stop_background():
     _stop_event.set()
 
 # ---------- DB booking endpoints (transaction-safe) ----------
+@app.get("/db/flights", response_model=List[DBFlightResponse])
+def db_get_flights(
+    origin: Optional[str] = None,
+    destination: Optional[str] = None,
+    date: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    order: str = "asc",
+    db: Session = Depends(get_db),
+):
+    query = db.query(FlightModel)
+
+    if origin:
+        query = query.filter(FlightModel.source.ilike(origin.strip()))
+    if destination:
+        query = query.filter(FlightModel.destination.ilike(destination.strip()))
+
+    if date:
+        try:
+            target = datetime.strptime(date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format (YYYY-MM-DD)")
+        query = query.filter(func.date(FlightModel.departure_time) == target)
+
+    rows = query.all()
+    result = []
+    for f in rows:
+        result.append(DBFlightResponse(
+            flight_id=f.flight_id,
+            airline=f.airline.airline_name if f.airline else "Unknown",
+            flight_number=f.flight_number,
+            source=f.source,
+            destination=f.destination,
+            departure_time=f.departure_time,
+            arrival_time=f.arrival_time,
+            total_seats=f.total_seats,
+            available_seats=f.available_seats,
+            duration_minutes=int((f.arrival_time - f.departure_time).total_seconds() / 60),
+            dynamic_price=dynamic_pricing_from_flight(f),
+            base_fare=float(f.base_fare or 0),
+            pricing_tier=f.pricing_tier or "standard",
+            demand=int(f.simulated_demand or 0),
+        ))
+
+    if sort_by not in (None, "price", "duration"):
+        raise HTTPException(status_code=400, detail="sort_by must be price or duration")
+    if sort_by == "price":
+        result.sort(key=lambda x: x.dynamic_price, reverse=(order.lower() == "desc"))
+    elif sort_by == "duration":
+        result.sort(key=lambda x: x.duration_minutes, reverse=(order.lower() == "desc"))
+    return result
+
+
+@app.get("/db/flights/{flight_id}", response_model=DBFlightResponse)
+def db_get_flight(flight_id: int, db: Session = Depends(get_db)):
+    f = db.query(FlightModel).filter(FlightModel.flight_id == flight_id).first()
+    if not f:
+        raise HTTPException(status_code=404, detail="Flight not found")
+    return DBFlightResponse(
+        flight_id=f.flight_id,
+        airline=f.airline.airline_name if f.airline else "Unknown",
+        flight_number=f.flight_number,
+        source=f.source,
+        destination=f.destination,
+        departure_time=f.departure_time,
+        arrival_time=f.arrival_time,
+        total_seats=f.total_seats,
+        available_seats=f.available_seats,
+        duration_minutes=int((f.arrival_time - f.departure_time).total_seconds() / 60),
+        dynamic_price=dynamic_pricing_from_flight(f),
+        base_fare=float(f.base_fare or 0),
+        pricing_tier=f.pricing_tier or "standard",
+        demand=int(f.simulated_demand or 0),
+    )
+
+
+@app.get("/flights", response_model=List[DBFlightResponse])
+def flights_alias(
+    origin: Optional[str] = None,
+    destination: Optional[str] = None,
+    date: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    order: str = "asc",
+    db: Session = Depends(get_db),
+):
+    return db_get_flights(origin, destination, date, sort_by, order, db)
+
+
+@app.get("/flights/search", response_model=List[DBFlightResponse])
+def flights_search_alias(
+    origin: str,
+    destination: str,
+    date: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    order: str = "asc",
+    db: Session = Depends(get_db),
+):
+    result = db_get_flights(origin, destination, date, sort_by, order, db)
+    if not result:
+        raise HTTPException(status_code=404, detail="No flights found for given search")
+    return result
+
+
 @app.post("/db/booking", response_model=DBBookingResponse, status_code=status.HTTP_201_CREATED)
 def db_create_booking(req: DBBookingRequest, db: Session = Depends(get_db)):
     try:
