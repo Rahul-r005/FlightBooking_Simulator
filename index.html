@@ -1,54 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Flight Booking Simulator ✈️</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <h1>Flight Booking Simulator ✈️</h1>
-
-  <!-- ================= SEARCH SECTION ================= -->
-  <section id="search-section" class="active">
-    <h2>Search Flights</h2>
-    <form id="searchForm" class="form-container">
-      <input type="text" id="origin" placeholder="Origin (e.g., DEL)" required>
-      <input type="text" id="destination" placeholder="Destination (e.g., BOM)" required>
-      <input type="date" id="date" required>
-      <button type="submit">Search</button>
-    </form>
-  </section>
-
-  <!-- ================= RESULTS SECTION ================= -->
-  <section id="results-section" class="hidden">
-    <h2>Available Flights</h2>
-    <div id="results"></div>
-    <button id="backToSearch">🔙 Back</button>
-  </section>
-
-  <!-- ================= BOOKING SECTION ================= -->
-  <section id="booking-section" class="hidden">
-    <h2>Enter Passenger Details</h2>
-    <form id="bookingForm" class="form-container">
-      <input type="text" id="name" placeholder="Full Name" required>
-      <input type="email" id="email" placeholder="Email" required>
-      <input type="number" id="age" placeholder="Age" required>
-      <button type="submit">Confirm Booking</button>
-    </form>
-    <button id="backToResults">🔙 Back</button>
-  </section>
-
-  <!-- ================= CONFIRMATION SECTION ================= -->
-  <section id="confirmation-section" class="hidden">
-    <h2>Booking Confirmed ✅</h2>
-    <div id="details"></div>
-    <div class="btn-group">
-      <button id="downloadJson">Download JSON Receipt</button>
-      <button id="downloadPdf">Download PDF Receipt</button>
-    </div>
-    <button id="backToHome">🏠 Home</button>
-  </section>
-
-  <script src="app.js"></script>
-</body>
-</html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flight Booking Simulator</title><link rel="stylesheet" href="style.css"></head>
+<body><header><h1>✈️ Flight Booking Simulator</h1><p>Dynamic pricing based on demand, seats and departure time</p></header><main>
+<section id="search-section"><h2>Search Flights</h2><form id="searchForm" class="form-container"><input id="origin" placeholder="Origin (e.g. Delhi)" required><input id="destination" placeholder="Destination (e.g. Mumbai)" required><input id="date" type="date" required><button>Search Flights</button></form><button id="showAll" class="secondary">Show All Flights</button><p id="message"></p></section>
+<section id="results-section" class="hidden"><div class="section-heading"><h2>Available Flights</h2><button id="backToSearch" class="secondary">Back</button></div><div id="results"></div></section>
+<section id="booking-section" class="hidden"><div class="section-heading"><h2>Passenger Details</h2><button id="backToResults" class="secondary">Back</button></div><div id="selectedFlight" class="selected-flight"></div><form id="bookingForm" class="form-container"><input id="name" placeholder="Full Name" required><input id="email" type="email" placeholder="Email"><input id="phone" placeholder="Phone"><input id="age" type="number" min="1" max="120" placeholder="Age"><input id="seat" placeholder="Seat (optional, e.g. 12A)" maxlength="5"><button>Confirm & Pay</button></form><p class="demo-note">Payment is simulated and succeeds automatically.</p></section>
+<section id="confirmation-section" class="hidden"><h2>✅ Booking Confirmed</h2><div id="details" class="confirmation-card"></div><div class="btn-group"><button id="downloadJson">Download JSON</button><button id="downloadPdf">Download PDF</button><button id="backToHome" class="secondary">New Search</button></div></section>
+<section id="history-section"><div class="section-heading"><h2>Recent Bookings</h2><button id="refreshHistory" class="secondary">Refresh</button></div><div id="history"></div></section>
+</main><script src="search.js"></script></body></html>
