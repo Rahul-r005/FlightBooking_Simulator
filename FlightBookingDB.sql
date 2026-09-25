@@ -1,133 +1,89 @@
-CREATE DATABASE flight_booking;
-
+CREATE DATABASE IF NOT EXISTS flight_booking CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE flight_booking;
 
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE IF EXISTS FareHistory;
+DROP TABLE IF EXISTS Payments;
+DROP TABLE IF EXISTS Bookings;
+DROP TABLE IF EXISTS Passengers;
+DROP TABLE IF EXISTS Flights;
+DROP TABLE IF EXISTS Airlines;
+SET FOREIGN_KEY_CHECKS=1;
+
 CREATE TABLE Airlines (
-    airline_id INT PRIMARY KEY AUTO_INCREMENT,
-    airline_name VARCHAR(100) NOT NULL,
-    contact_number VARCHAR(15),
-    email VARCHAR(50)
+  airline_id INT PRIMARY KEY AUTO_INCREMENT,
+  airline_name VARCHAR(100) NOT NULL,
+  contact_number VARCHAR(20),
+  email VARCHAR(100)
 );
 
 CREATE TABLE Flights (
-    flight_id INT PRIMARY KEY AUTO_INCREMENT,
-    airline_id INT,
-    flight_number VARCHAR(10)  NOT NULL,
-    source VARCHAR(50),
-    destination VARCHAR(50),
-    departure_time DATETIME,
-    arrival_time DATETIME,
-    total_seats INT,
-    available_seats INT,
-    FOREIGN KEY (airline_id) REFERENCES Airlines(airline_id)
+  flight_id INT PRIMARY KEY AUTO_INCREMENT,
+  airline_id INT NOT NULL,
+  flight_number VARCHAR(20) NOT NULL UNIQUE,
+  source VARCHAR(50) NOT NULL,
+  destination VARCHAR(50) NOT NULL,
+  departure_time DATETIME NOT NULL,
+  arrival_time DATETIME NOT NULL,
+  total_seats INT NOT NULL,
+  available_seats INT NOT NULL,
+  flight_status VARCHAR(20) DEFAULT 'On Time',
+  base_fare DECIMAL(10,2) DEFAULT 3000.00,
+  pricing_tier VARCHAR(20) DEFAULT 'standard',
+  simulated_demand INT DEFAULT 50,
+  FOREIGN KEY (airline_id) REFERENCES Airlines(airline_id)
 );
 
 CREATE TABLE Passengers (
-    passenger_id INT PRIMARY KEY AUTO_INCREMENT,
-    full_name VARCHAR(100),
-    gender CHAR(1),
-    age INT,
-    email VARCHAR(50),
-    phone VARCHAR(15)
+  passenger_id INT PRIMARY KEY AUTO_INCREMENT,
+  full_name VARCHAR(100) NOT NULL,
+  gender CHAR(1),
+  age INT,
+  email VARCHAR(100),
+  phone VARCHAR(20)
 );
 
 CREATE TABLE Bookings (
-    booking_id INT PRIMARY KEY AUTO_INCREMENT,
-    flight_id INT,
-    passenger_id INT,
-    booking_date DATETIME DEFAULT NOW(),
-    seat_number VARCHAR(5),
-    status VARCHAR(20) DEFAULT 'Confirmed',
-    FOREIGN KEY (flight_id) REFERENCES Flights(flight_id),
-    FOREIGN KEY (passenger_id) REFERENCES Passengers(passenger_id)
+  booking_id INT PRIMARY KEY AUTO_INCREMENT,
+  flight_id INT NOT NULL,
+  passenger_id INT NOT NULL,
+  booking_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  seat_number VARCHAR(5) NOT NULL,
+  status VARCHAR(20) DEFAULT 'Confirmed',
+  pnr VARCHAR(20) NOT NULL UNIQUE,
+  price_per_seat DECIMAL(10,2) NOT NULL,
+  total_price DECIMAL(12,2) NOT NULL,
+  UNIQUE KEY uq_flight_seat (flight_id, seat_number),
+  FOREIGN KEY (flight_id) REFERENCES Flights(flight_id),
+  FOREIGN KEY (passenger_id) REFERENCES Passengers(passenger_id)
 );
 
 CREATE TABLE Payments (
-    payment_id INT PRIMARY KEY AUTO_INCREMENT,
-    booking_id INT,
-    amount DECIMAL(10,2),
-    payment_status VARCHAR(20) DEFAULT 'Success',
-    payment_method VARCHAR(20),
-    payment_date DATETIME DEFAULT NOW(),
-
-    FOREIGN KEY (booking_id)
-    REFERENCES Bookings(booking_id)
+  payment_id INT PRIMARY KEY AUTO_INCREMENT,
+  booking_id INT NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
+  payment_status VARCHAR(20) DEFAULT 'Success',
+  payment_method VARCHAR(30) DEFAULT 'Simulated',
+  payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (booking_id) REFERENCES Bookings(booking_id)
 );
---Insert
+
+CREATE TABLE FareHistory (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  flight_id INT NOT NULL,
+  recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  price DECIMAL(10,2) NOT NULL,
+  FOREIGN KEY (flight_id) REFERENCES Flights(flight_id)
+);
+
 INSERT INTO Airlines (airline_name, contact_number, email) VALUES
-('Air India', '9876543210', 'contact@airindia.com'),
-('IndiGo', '9988776655', 'contact@goindigo.in'),
-('DEccan Air','8866654522', 'contact@deccanair.com');
+('Air India','9876543210','contact@airindia.com'),
+('IndiGo','9988776655','contact@goindigo.in'),
+('SpiceJet','8877665544','contact@spicejet.com');
 
-INSERT INTO Flights (airline_id, flight_number, source, destination, departure_time, arrival_time, total_seats, available_seats)
-VALUES 
-(1, 'AI2023', 'Delhi', 'Mumbai', '2025-10-10 08:00:00', '2025-10-10 10:15:00', 180, 160),
-(2, '6E305', 'Chennai', 'Bangalore', '2025-10-10 09:30:00', '2025-10-10 10:45:00', 150, 145);
-
-INSERT INTO Passengers (full_name, gender, age, email, phone) VALUES 
-('Rahul R', 'M', 20, 'rahul@gmail.com', '9998887776'),
-('Prabha R', 'M', 22, 'prabga@gmail.com', '8887776665'),
-('Sanjay G', 'M', 32, 'sanjau@gmail.com', '7776688441');
-
-INSERT INTO Bookings (flight_id, passenger_id, seat_number)
-VALUES 
-(1, 1, '12A'),
-(2, 2, '8B'),
-(1, 3, '12C');
-
---Viewing data
-SELECT * FROM Airlines;
-SELECT * FROM Flights;
-SELECT * FROM Passengers;
-SELECT * FROM Bookings;
-SELECT * FROM Payments;
-
--- filtering data
-SELECT * FROM Flights WHERE source = 'Delhi';
-SELECT * FROM Flights WHERE total_seats > 150;
-
---Sorting data
-SELECT flight_number, source, destination, departure_time FROM Flights ORDER BY departure_time ASC;
-SELECT full_name, age FROM Passengers ORDER BY full_name DESC;
-
---Aggregate functions
-SELECT COUNT(*) AS total_flights FROM Flights;
-
-
---GROUP BY and HAVING
-SELECT flight_id, COUNT(booking_id) AS total_bookings FROM Bookings GROUP BY flight_id;
-SELECT flight_id, COUNT(*) AS num_bookings FROM Bookings GROUP BY flight_id HAVING COUNT(*) > 1;
-
---Joins
--- Passengers with their booking status
-SELECT P.full_name, B.seat_number, B.status FROM Passengers P
-INNER JOIN Bookings B ON P.passenger_id = B.passenger_id;
-
--- Flights with their airlines
-SELECT F.flight_number, A.airline_name, F.source, F.destination FROM Flights F
-INNER JOIN Airlines A ON F.airline_id = A.airline_id;
-
--- Passengers with flight details
-SELECT P.full_name, F.flight_number, F.source, F.destination, B.seat_number FROM Passengers P
-JOIN Bookings B ON P.passenger_id = B.passenger_id
-JOIN Flights F ON B.flight_id = F.flight_id;
-
---ALTER, UPDATE, DELETE
-ALTER TABLE Flights ADD COLUMN flight_status VARCHAR(20) DEFAULT 'On Time';
--- add base_fare, pricing_tier, and simulated_demand columns
-ALTER TABLE Flights
-  ADD COLUMN base_fare DECIMAL(10,2) DEFAULT 3000.00,
-  ADD COLUMN pricing_tier VARCHAR(20) DEFAULT 'standard',
-  ADD COLUMN simulated_demand INT DEFAULT 50; 
-
-ALTER TABLE Bookings
-ADD CONSTRAINT unique_flight_seat
-UNIQUE (flight_id, seat_number);
---Transactions
-START TRANSACTION;
-INSERT INTO Bookings (flight_id, passenger_id, seat_number) VALUES (1, 1, '14C');
-UPDATE Flights SET available_seats = available_seats - 1 WHERE flight_id = 1;
-COMMIT;
-
--- ROLLBACK;
-DESCRIBE flights
+INSERT INTO Flights
+(airline_id,flight_number,source,destination,departure_time,arrival_time,total_seats,available_seats,flight_status,base_fare,pricing_tier,simulated_demand)
+VALUES
+(2,'6E203','Delhi','Mumbai',DATE_ADD(NOW(),INTERVAL 6 HOUR),DATE_ADD(NOW(),INTERVAL 8 HOUR),180,150,'On Time',4000,'standard',60),
+(1,'AI440','Delhi','Chennai',DATE_ADD(NOW(),INTERVAL 12 HOUR),DATE_ADD(NOW(),INTERVAL 15 HOUR),220,200,'On Time',4500,'economy',30),
+(3,'SG789','Bangalore','Kolkata',DATE_ADD(NOW(),INTERVAL 18 HOUR),DATE_ADD(NOW(),INTERVAL 21 HOUR),150,100,'On Time',3800,'premium',80);
