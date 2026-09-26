@@ -151,7 +151,7 @@ def dynamic_pricing(f: Flight) -> float:
 
 @app.get("/")
 def home():
-    return {"message": "Welcome to Flight Booking System"}
+    return FileResponse("frontend/index.html")
 
 @app.get("/legacy/flights", response_model=List[FlightOut])
 def get_all_flights(sort_by: Optional[str] = Query(None), order: Optional[str] = Query("asc")):
@@ -275,19 +275,21 @@ def simulate_demand():
 # --- DB-backed booking workflow additions ---
 # ----------------------------
 
-DB_USER = os.getenv("DB_USER", "root")
+DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASS = os.getenv("DB_PASS", "")
 DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "3306")
-DB_NAME = os.getenv("DB_NAME", "flight_booking") 
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("DB_NAME", "flight_booking")
 
-DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("MYSQL_URL") or os.getenv("MYSQL_PUBLIC_URL")
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
 
-if not DATABASE_URL:
-    DATABASE_URL = (
-        f"mysql+pymysql://{DB_USER}:{DB_PASS}"
-        f"@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    )
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+else:
+    DATABASE_URL = "sqlite:///./flight_booking.db"
 
 # SQLAlchemy setup
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
@@ -358,6 +360,84 @@ class FareHistoryModel(Base):
 # Create tables if missing (development convenience)
 Base.metadata.create_all(bind=engine)
 
+def seed_initial_data():
+    """Create a small starter dataset when the database is empty."""
+    db = SessionLocal()
+    try:
+        if db.query(FlightModel).first():
+            return
+
+        airlines = {
+            "Air India": AirlineModel(
+                airline_name="Air India",
+                contact_number="9876543210",
+                email="contact@airindia.com",
+            ),
+            "IndiGo": AirlineModel(
+                airline_name="IndiGo",
+                contact_number="9988776655",
+                email="contact@goindigo.in",
+            ),
+            "SpiceJet": AirlineModel(
+                airline_name="SpiceJet",
+                contact_number="8877665544",
+                email="contact@spicejet.com",
+            ),
+        }
+        db.add_all(airlines.values())
+        db.flush()
+
+        now = datetime.utcnow()
+        db.add_all([
+            FlightModel(
+                airline_id=airlines["IndiGo"].airline_id,
+                flight_number="6E203",
+                source="Delhi",
+                destination="Mumbai",
+                departure_time=now + timedelta(hours=6),
+                arrival_time=now + timedelta(hours=8),
+                total_seats=180,
+                available_seats=150,
+                base_fare=4000,
+                pricing_tier="standard",
+                simulated_demand=60,
+            ),
+            FlightModel(
+                airline_id=airlines["Air India"].airline_id,
+                flight_number="AI440",
+                source="Delhi",
+                destination="Chennai",
+                departure_time=now + timedelta(hours=12),
+                arrival_time=now + timedelta(hours=15),
+                total_seats=220,
+                available_seats=200,
+                base_fare=4500,
+                pricing_tier="economy",
+                simulated_demand=30,
+            ),
+            FlightModel(
+                airline_id=airlines["SpiceJet"].airline_id,
+                flight_number="SG789",
+                source="Bangalore",
+                destination="Kolkata",
+                departure_time=now + timedelta(hours=18),
+                arrival_time=now + timedelta(hours=21),
+                total_seats=150,
+                available_seats=100,
+                base_fare=3800,
+                pricing_tier="premium",
+                simulated_demand=80,
+            ),
+        ])
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+seed_initial_data()
+
 # Pydantic schemas for DB endpoints
 class DBBookingRequest(BaseModel):
     flight_id: int
@@ -394,8 +474,7 @@ class DBBookingResponse(BaseModel):
     status: str
     booking_date: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 # DB dependency
 def get_db():
@@ -443,12 +522,9 @@ def dynamic_pricing_from_flight(flight: FlightModel) -> float:
     return round(price, 2)
 
 def record_fare(db: Session, flight_id: int, price: float):
-    try:
-        fh = FareHistoryModel(flight_id=flight_id, price=price)
-        db.add(fh)
-        db.flush()
-    except Exception:
-        db.rollback()
+    fh = FareHistoryModel(flight_id=flight_id, price=price)
+    db.add(fh)
+    db.flush()
 
 # Background simulator (updates DB)
 _stop_event = threading.Event()
@@ -800,6 +876,7 @@ def db_dynamic_price(flight_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Flight not found")
     price = dynamic_pricing_from_flight(flight)
     record_fare(db, flight.flight_id, price)
+    db.commit()
     return {
         "flight_id": flight.flight_id,
         "flight_number": flight.flight_number,
