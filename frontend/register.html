@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="theme-color" content="#3157d5">
+  <title>Create account — SkyBook</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+    <a class="brand auth-brand" href="/"><img src="/logo.svg" alt="SkyBook"></a>
+    <p class="eyebrow">GET STARTED</p>
+    <h1>Create your SkyBook account</h1>
+    <p class="muted">Sign in is required before a flight booking can be created.</p>
+    <form id="registerForm" class="auth-form">
+      <label>Full name<input id="fullName" autocomplete="name" required minlength="2"></label>
+      <label>Email<input id="email" type="email" autocomplete="email" required></label>
+      <label>Password<input id="password" type="password" autocomplete="new-password" minlength="8" required></label>
+      <button class="primary-btn" type="submit">Create account</button>
+    </form>
+    <div id="authStatus" class="status"></div>
+    <p class="auth-switch">Already registered? <a href="/login">Sign in</a></p>
+  </main>
+  <script src="/auth.js"></script>
+</body>
+</html>
