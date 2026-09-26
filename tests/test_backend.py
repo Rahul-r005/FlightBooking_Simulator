@@ -41,6 +41,7 @@ flight_id = flight.flight_id
 db.close()
 
 def test_backend_flow():
+    with TestClient(app) as client:
         assert client.get("/health").status_code == 200
     
         response = client.get("/flights")
