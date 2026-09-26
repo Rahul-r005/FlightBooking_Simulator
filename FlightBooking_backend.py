@@ -651,6 +651,14 @@ def db_create_booking(req: DBBookingRequest, db: Session = Depends(get_db)):
             db.add(booking)
             db.flush()
 
+            payment = PaymentModel(
+                booking_id=booking.booking_id,
+                amount=total_price,
+                payment_status="Success",
+                payment_method="Simulated",
+            )
+            db.add(payment)
+
             record_fare(db, flight.flight_id, price_per_seat)
 
             return DBBookingResponse(
