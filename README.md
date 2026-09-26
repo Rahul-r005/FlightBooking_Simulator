@@ -136,3 +136,4 @@ Free Render Postgres instances have a limited lifetime, so the deployment is int
 ├── render.yaml
 └── .github/workflows/recovery-tests.yml
 ```
+\n\n<!-- Verification pass marker; runtime documentation remains unchanged. -->\n
