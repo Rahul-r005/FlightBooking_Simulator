@@ -1,10 +1,10 @@
 import hashlib
-import hmac
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from pwdlib import PasswordHash
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal, SessionModel, UserModel
@@ -14,34 +14,19 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 
 SESSION_COOKIE = "__Host-SkyBookSession"
 SESSION_TTL_HOURS = int(os.getenv("SESSION_TTL_HOURS", "12"))
+password_hash = PasswordHash.recommended()
 
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
-def _hash_password(password: str, salt: bytes) -> str:
-    return hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        salt,
-        310_000,
-    ).hex()
-
-
 def hash_password(password: str) -> str:
-    salt = secrets.token_bytes(16)
-    return salt.hex() + "$" + _hash_password(password, salt)
+    return password_hash.hash(password)
 
 
 def verify_password(password: str, stored_hash: str) -> bool:
-    try:
-        salt_hex, digest = stored_hash.split("$", 1)
-        salt = bytes.fromhex(salt_hex)
-    except ValueError:
-        return False
-    candidate = _hash_password(password, salt)
-    return hmac.compare_digest(candidate, digest)
+    return password_hash.verify(password, stored_hash)
 
 
 def _token_digest(token: str) -> str:
@@ -156,7 +141,10 @@ def login(request: LoginRequest, response: Response, db: Session = Depends(lambd
             .filter(UserModel.email == request.email.lower().strip())
             .first()
         )
-        if not user or not verify_password(request.password, user.password_hash):
+        if not user:
+            password_hash.hash("timing-protection-password")
+            raise HTTPException(status_code=401, detail="Invalid email or password.")
+        if not verify_password(request.password, user.password_hash):
             raise HTTPException(status_code=401, detail="Invalid email or password.")
         if user.suspended:
             raise HTTPException(status_code=403, detail="This account has been suspended.")
