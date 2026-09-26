@@ -54,7 +54,7 @@ def test_booking_cancellation_and_seat_reuse():
 
         notifications = client.get("/notifications")
         assert notifications.status_code == 200
-        assert any(pnr in item["message"] for item in notifications.json())
+        assert not any(pnr in item["message"] for item in notifications.json())
 
         reused = client.post(
             "/db/booking",

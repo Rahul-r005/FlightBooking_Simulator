@@ -616,7 +616,7 @@ def db_cancel_booking(
                 raise HTTPException(status_code=404, detail="Booking not found")
             if not _booking_belongs_to_user(booking, user):
                 raise HTTPException(status_code=403, detail="You do not have access to this booking.")
-            notification_created = cancel_booking(db, booking, notify_user=True)
+            notification_created = cancel_booking(db, booking, notify_user=False)
         return {
             "message": "Booking cancelled.",
             "pnr": pnr,
