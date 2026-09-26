@@ -1,6 +1,8 @@
 
 from fastapi import Response, FastAPI, HTTPException, Query, Depends, status
-from pydantic import BaseModel, EmailStr, Field
+from fastapi.middleware.cors import CORSMiddleware
+
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import List, Optional
 from datetime import datetime, timedelta
 import random
@@ -8,6 +10,11 @@ import threading
 import os
 import io
 import string
+
+try:
+    from reportlab.pdfgen import canvas
+except ImportError:
+    canvas = None
 
 # SQLAlchemy imports
 from sqlalchemy import (
@@ -19,6 +26,21 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship, Session
 # Basic FastAPI app
 # ----------------------------
 app = FastAPI(title="Flight Booking Simulator with Dynamic Pricing")
+
+# Explicit local/deployment origins; override with ALLOWED_ORIGINS when needed.
+_allowed_origins = [
+    origin.strip() for origin in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:3000,http://localhost:5173,http://localhost:5500,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:5500"
+    ).split(",") if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # ----------------------------
 # --- Original in-memory models & endpoints (kept) ---
 # ----------------------------
@@ -129,7 +151,7 @@ def dynamic_pricing(f: Flight) -> float:
 def home():
     return {"message": "Welcome to Flight Booking System"}
 
-@app.get("/flights", response_model=List[FlightOut])
+@app.get("/legacy/flights", response_model=List[FlightOut])
 def get_all_flights(sort_by: Optional[str] = Query(None), order: Optional[str] = Query("asc")):
     result = []
     for f in flights:
@@ -156,7 +178,7 @@ def get_all_flights(sort_by: Optional[str] = Query(None), order: Optional[str] =
         result.sort(key=key_func, reverse=reverse)
     return result
 
-@app.get("/flights/search", response_model=List[FlightOut])
+@app.get("/legacy/flights/search", response_model=List[FlightOut])
 def search_flights(
     origin: str, destination: str, date: Optional[str] = Query(None),
     sort_by: Optional[str] = Query(None), order: Optional[str] = Query("asc")
@@ -196,7 +218,7 @@ def search_flights(
         results.sort(key=key_func, reverse=reverse)
     return results
 
-@app.post("/book", response_model=BookingOut)
+@app.post("/legacy/book", response_model=BookingOut)
 def create_booking(data: BookingIn):
     global booking_counter
     for f in flights:
@@ -309,7 +331,7 @@ class BookingModel(Base):
     flight_id = Column(Integer, ForeignKey("Flights.flight_id"))
     passenger_id = Column(Integer, ForeignKey("Passengers.passenger_id"))
     booking_date = Column(DateTime, server_default=func.now())
-    seat_number = Column(String(5))
+    seat_number = Column(String(5), nullable=True)
     status = Column(String(20), default="Confirmed")
     pnr = Column(String(20), unique=True, nullable=True)
     price_per_seat = Column(DECIMAL(10,2), nullable=True)
@@ -569,7 +591,25 @@ def db_create_booking(req: DBBookingRequest, db: Session = Depends(get_db)):
             if flight.available_seats <= 0:
                 raise HTTPException(status_code=400, detail="No seats available")
 
-            # reserve seat
+            seat_number = (req.seat_number or "").strip().upper()
+            if not seat_number:
+                raise HTTPException(status_code=400, detail="Seat number is required")
+            if len(seat_number) < 2 or not seat_number[:-1].isdigit() or not seat_number[-1:].isalpha():
+                raise HTTPException(status_code=400, detail="Seat number must look like 12A")
+            row_number = int(seat_number[:-1])
+            seat_letter = seat_number[-1:]
+            max_row = (flight.total_seats + 4) // 5
+            if row_number < 1 or row_number > max_row or seat_letter not in "ABCDE":
+                raise HTTPException(status_code=400, detail="Invalid seat number for this flight")
+            seat_taken = db.query(BookingModel).filter(
+                BookingModel.flight_id == flight.flight_id,
+                BookingModel.seat_number == seat_number,
+                BookingModel.status != "Cancelled",
+            ).first()
+            if seat_taken:
+                raise HTTPException(status_code=409, detail="Seat is already booked")
+
+            # Reserve the seat only after validation; transaction rollback restores it on payment failure.
             flight.available_seats = flight.available_seats - 1
             db.flush()
 
@@ -602,7 +642,7 @@ def db_create_booking(req: DBBookingRequest, db: Session = Depends(get_db)):
             booking = BookingModel(
                 flight_id=flight.flight_id,
                 passenger_id=passenger.passenger_id,
-                seat_number=req.seat_number,
+                seat_number=seat_number,
                 status="Confirmed",
                 pnr=pnr,
                 price_per_seat=price_per_seat,
@@ -610,6 +650,14 @@ def db_create_booking(req: DBBookingRequest, db: Session = Depends(get_db)):
             )
             db.add(booking)
             db.flush()
+
+            payment = PaymentModel(
+                booking_id=booking.booking_id,
+                amount=total_price,
+                payment_status="Success",
+                payment_method="Simulated",
+            )
+            db.add(payment)
 
             record_fare(db, flight.flight_id, price_per_seat)
 
@@ -700,6 +748,7 @@ def db_cancel_booking(pnr: str, db: Session = Depends(get_db)):
                 raise HTTPException(status_code=500, detail="Associated flight not found")
             flight.available_seats = min(flight.total_seats, flight.available_seats + 1)
             booking.status = "Cancelled"
+            booking.seat_number = None
             db.add(booking); db.add(flight)
         return {"message": "Booking cancelled", "pnr": pnr}
     except HTTPException:

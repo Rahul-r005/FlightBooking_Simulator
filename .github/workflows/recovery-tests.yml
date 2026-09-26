@@ -1,0 +1,21 @@
+name: Recovery regression tests
+
+on:
+  push:
+    branches: ["main", "repair/recovery-audit"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --upgrade pip
+      - run: pip install -r requirements.txt
+      - run: pip install pytest httpx2
+      - run: python -m compileall -q FlightBooking_backend.py tests
+      - run: node --check frontend/script.js
+      - run: python -m pytest -q
