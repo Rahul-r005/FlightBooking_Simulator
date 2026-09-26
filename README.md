@@ -1,41 +1,58 @@
 # ✈️ Flight Booking Simulator
 
-A self-contained FastAPI flight-booking simulator with a browser frontend and database-backed dynamic pricing.
+SkyBook is a small FastAPI flight-booking application with a browser frontend, PostgreSQL/SQLite persistence, dynamic fares, simulated payments, and seat management.
 
-## Current architecture
+## Architecture
 
-- **Frontend:** HTML, CSS and JavaScript in `frontend/`
-- **Backend:** FastAPI in `FlightBooking_backend.py`
-- **ORM:** SQLAlchemy
-- **Production database:** Render Postgres
-- **Local fallback:** SQLite (`flight_booking.db`)
-- **Deployment:** Render Blueprint in `render.yaml`
-- **Tests:** pytest + FastAPI TestClient
+The repository keeps the deployment entrypoint at `FlightBooking_backend.py` so the existing Render configuration does not need to change. The implementation is split by responsibility:
 
-The application serves the frontend and API from the same FastAPI web service.
+```text
+FlightBooking_backend.py        compatibility entrypoint
+flight_booking/
+├── api.py                      FastAPI routes and HTTP behavior
+├── database.py                 SQLAlchemy models, connection, and seed data
+├── pricing.py                  flight fare calculations and PNR generation
+├── schemas.py                  API request/response models
+└── simulator.py                background demand and seat simulation
+frontend/
+├── index.html                  application page
+├── script.js                   browser API and booking interactions
+├── style.css                   application styles
+├── 404.html                    themed HTML 404 page
+└── favicon.svg                 SkyBook favicon
+migrations/                     PostgreSQL schema migration
+FlightBookingDB.sql             standalone PostgreSQL bootstrap schema
+render.yaml                     Render web service and database definition
+.github/workflows/              regression checks
+```
+
+There is deliberately no generic `utils` or service layer. Shared behavior stays next to the flight-booking concept it belongs to.
 
 ## Features
 
-- Search flights by origin, destination and date
-- Dynamic pricing based on demand, seat availability and time to departure
+- Search flights by origin, destination, and date
+- Dynamic pricing based on demand, remaining seats, and departure time
 - Database-backed flight inventory
-- Seat validation and duplicate-seat protection
-- Simulated payment
-- Booking confirmation with PNR
+- Seat format validation and duplicate-seat protection
+- Simulated payment with transaction rollback on failure
+- Booking confirmation with a PNR
 - Booking history
 - Booking cancellation with seat restoration
-- Cancelled seats can be booked again
-- Dynamic fare history
-- PDF receipt endpoint
-- Background demand/availability simulation
-- Starter flight data is created automatically when an empty database is detected
+- Reuse of a seat after cancellation
+- Fare history recording
+- PDF receipt generation
+- Background demand/availability simulation in the running application
+- Deterministic tests with the background simulator disabled
+- Starter flights created automatically when the database is empty
 
 ## API
 
 ### Health
+
 `GET /health`
 
 ### Flights
+
 - `GET /flights`
 - `GET /flights/search`
 - `GET /db/flights`
@@ -43,6 +60,7 @@ The application serves the frontend and API from the same FastAPI web service.
 - `GET /db/dynamic_price/{flight_id}`
 
 ### Booking
+
 - `POST /db/booking`
 - `GET /db/bookings`
 - `GET /db/booking/{pnr}`
@@ -50,7 +68,7 @@ The application serves the frontend and API from the same FastAPI web service.
 - `POST /db/bookings/{pnr}/pay`
 - `POST /receipt/pdf`
 
-The older in-memory demonstration endpoints remain under `/legacy/`.
+The older in-memory demonstration endpoints remain available under `/legacy/` for compatibility.
 
 ## Local development
 
@@ -58,8 +76,10 @@ Create a virtual environment and install dependencies:
 
 ```bash
 python -m venv .venv
+
 # Windows
 .venv\\Scripts\\activate
+
 # macOS/Linux
 source .venv/bin/activate
 
@@ -67,72 +87,60 @@ pip install -r requirements.txt
 uvicorn FlightBooking_backend:app --reload
 ```
 
-Open:
+Open `http://127.0.0.1:8000`.
 
-```
-http://127.0.0.1:8000
-```
+When `DATABASE_URL` is not set, the application uses `flight_booking.db` with SQLite. A PostgreSQL URL is accepted through either `DATABASE_URL` or `POSTGRES_URL`.
 
-When `DATABASE_URL` is not provided, the application uses local SQLite automatically.
+## Testing
 
-## Render deployment
-
-The repository contains `render.yaml`, which defines:
-
-1. A free Render Python web service.
-2. A free Render Postgres database.
-3. An internal `DATABASE_URL` connection from the web service to the Postgres database.
-
-Render's Blueprint `fromDatabase.connectionString` provides the Postgres connection string to the service. The application explicitly converts Render's `postgresql://` URL to SQLAlchemy's `postgresql+psycopg2://` dialect because the project installs `psycopg2-binary`.
-
-To deploy, connect the repository to Render and create a new Blueprint instance from `render.yaml`.
-
-## Verification
-
-The CI workflow in `.github/workflows/recovery-tests.yml` checks:
+The regression suite checks the real booking workflow:
 
 - Python compilation
 - JavaScript syntax
 - API health
-- automatic starter-data creation
-- flight retrieval
-- booking
-- seat availability changes
-- booking cancellation
-- seat reuse after cancellation
+- starter-data creation
+- flight retrieval and search
+- CORS behavior
+- invalid seat rejection
+- payment-failure rollback
+- successful booking and payment record
 - duplicate-seat rejection
+- cancellation and seat restoration
+- seat reuse after cancellation
+- PDF receipt generation
 
-Run locally:
+Run the same checks locally:
 
 ```bash
 pip install -r requirements.txt
 pip install pytest
-python -m compileall -q FlightBooking_backend.py tests
+python -m compileall -q FlightBooking_backend.py flight_booking tests
 node --check frontend/script.js
 python -m pytest -q
 ```
 
-## Database notes
+Tests use one isolated SQLite database and an autouse fixture, so the suite is safe to run as one pytest process. `DISABLE_BACKGROUND_SIMULATOR=1` prevents the demo simulator from changing inventory while assertions are running.
 
-The application creates its SQLAlchemy tables automatically at startup. `FlightBookingDB.sql` is a standalone PostgreSQL bootstrap script for manual database setup; Render deployment does not require running it.
+## Render deployment
 
-Free Render Postgres instances have a limited lifetime, so the deployment is intended for development/demo use rather than durable production storage.
-
-## Project structure
+`render.yaml` defines the existing Render web service and Postgres database. The web service keeps this start command:
 
 ```text
-.
-├── FlightBooking_backend.py
-├── frontend/
-│   ├── index.html
-│   ├── script.js
-│   └── style.css
-├── tests/
-│   └── test_recovery.py
-├── migrations/
-│   └── 001_booking_seat_reuse.sql
-├── FlightBookingDB.sql
-├── requirements.txt
-├── render.yaml
-└── .github/workflows/recovery-tests.yml
+uvicorn FlightBooking_backend:app --host 0.0.0.0 --port $PORT
 ```
+
+The application converts Render's `postgresql://` connection string to SQLAlchemy's `postgresql+psycopg2://` dialect because the project installs `psycopg2-binary`.
+
+Render serves the frontend from the same FastAPI service, so there is no second frontend deployment to keep synchronized.
+
+The database tables are created by SQLAlchemy at application startup. `FlightBookingDB.sql` is provided for manual PostgreSQL setup; Render does not need it during a normal deploy.
+
+The free Render Postgres plan is suitable for the project's demo/development deployment and has a limited lifetime.
+
+## Database migration
+
+`migrations/001_booking_seat_reuse.sql` allows a cancelled seat to be cleared from a booking while retaining the booking record for history. A cancelled seat can therefore be booked again without creating a duplicate active seat assignment.
+
+## Deployment safety
+
+The Render service tracks `main` and auto-deploys repository changes. The application entrypoint and Render start command are intentionally unchanged by the code-organization refactor, so restructuring the Python modules does not require a deployment configuration migration.
