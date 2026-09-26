@@ -1,6 +1,9 @@
 import os
 from pathlib import Path
 
+# Keep the production demand/seat simulator disabled during deterministic tests.
+os.environ["DISABLE_BACKGROUND_SIMULATOR"] = "1"
+
 DB_FILE = Path("test_flight_booking.db")
 if DB_FILE.exists():
     DB_FILE.unlink()
