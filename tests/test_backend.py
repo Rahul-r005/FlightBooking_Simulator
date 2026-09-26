@@ -17,14 +17,14 @@ def create_test_flight() -> int:
     airline = AirlineModel(airline_name="Test Air")
     db.add(airline)
     db.flush()
-
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     flight = FlightModel(
         airline_id=airline.airline_id,
         flight_number="TA101",
         source="Delhi",
         destination="Mumbai",
-        departure_time=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=24),
-        arrival_time=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=26),
+        departure_time=now + timedelta(hours=24),
+        arrival_time=now + timedelta(hours=26),
         total_seats=10,
         available_seats=10,
         base_fare=4000,
@@ -38,10 +38,39 @@ def create_test_flight() -> int:
     return flight_id
 
 
+def sign_in(client: TestClient) -> None:
+    response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Test User",
+            "email": "test@example.com",
+            "password": "correct-horse-battery",
+        },
+    )
+    assert response.status_code == 201, response.text
+
+
+def test_unauthenticated_booking_is_rejected():
+    flight_id = create_test_flight()
+    with TestClient(app) as client:
+        response = client.post(
+            "/db/booking",
+            json={
+                "flight_id": flight_id,
+                "passenger_name": "Blocked User",
+                "seat_number": "1A",
+                "force_payment_success": True,
+            },
+        )
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Please sign in to continue."
+
+
 def test_backend_flow():
     flight_id = create_test_flight()
 
     with TestClient(app) as client:
+        sign_in(client)
         assert client.get("/health").status_code == 200
 
         response = client.get("/flights")
@@ -97,6 +126,7 @@ def test_backend_flow():
         assert booking.status_code == 201, booking.text
         payload = booking.json()
         assert payload["seat_number"] == "1A"
+        assert payload["user_id"] > 0
 
         db = SessionLocal()
         assert db.query(PaymentModel).filter(PaymentModel.booking_id == payload["booking_id"]).count() == 1
@@ -121,6 +151,7 @@ def test_backend_flow():
         assert db.get(FlightModel, flight_id).available_seats == 10
         booking_record = db.query(BookingModel).filter(BookingModel.pnr == payload["pnr"]).first()
         assert booking_record.seat_number is None
+        assert booking_record.status == "Cancelled"
         db.close()
 
         reused = client.post(

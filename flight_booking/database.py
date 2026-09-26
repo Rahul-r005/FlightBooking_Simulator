@@ -1,7 +1,20 @@
 import os
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import Column, DateTime, DECIMAL, ForeignKey, Integer, String, create_engine, func
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    DECIMAL,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    create_engine,
+    func,
+    inspect,
+    text,
+)
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 
@@ -22,8 +35,43 @@ if DATABASE_URL.startswith("sqlite"):
     engine_options["connect_args"] = {"check_same_thread": False}
 
 engine = create_engine(DATABASE_URL, **engine_options)
-SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False, expire_on_commit=False)
 Base = declarative_base()
+
+
+class UserModel(Base):
+    __tablename__ = "Users"
+
+    user_id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
+    full_name = Column(String(100), nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False, default="user", index=True)
+    suspended = Column(Boolean, nullable=False, default=False, index=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class SessionModel(Base):
+    __tablename__ = "UserSessions"
+
+    session_id = Column(Integer, primary_key=True, autoincrement=True)
+    token_digest = Column(String(64), unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("Users.user_id"), nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    created_at = Column(DateTime, server_default=func.now())
+    user = relationship("UserModel")
+
+
+class NotificationModel(Base):
+    __tablename__ = "Notifications"
+
+    notification_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("Users.user_id"), nullable=False, index=True)
+    booking_id = Column(Integer, ForeignKey("Bookings.booking_id"), nullable=True, index=True)
+    message = Column(String(500), nullable=False)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    read = Column(Boolean, nullable=False, default=False)
+    user = relationship("UserModel")
 
 
 class AirlineModel(Base):
@@ -41,9 +89,9 @@ class FlightModel(Base):
     flight_id = Column(Integer, primary_key=True, autoincrement=True)
     airline_id = Column(Integer, ForeignKey("Airlines.airline_id"), nullable=False)
     flight_number = Column(String(20), unique=True, nullable=False)
-    source = Column(String(50), nullable=False)
-    destination = Column(String(50), nullable=False)
-    departure_time = Column(DateTime, nullable=False)
+    source = Column(String(50), nullable=False, index=True)
+    destination = Column(String(50), nullable=False, index=True)
+    departure_time = Column(DateTime, nullable=False, index=True)
     arrival_time = Column(DateTime, nullable=False)
     total_seats = Column(Integer, nullable=False)
     available_seats = Column(Integer, nullable=False)
@@ -51,6 +99,7 @@ class FlightModel(Base):
     pricing_tier = Column(String(20), default="standard")
     simulated_demand = Column(Integer, default=50)
     airline = relationship("AirlineModel")
+    bookings = relationship("BookingModel", back_populates="flight")
 
 
 class PassengerModel(Base):
@@ -60,29 +109,34 @@ class PassengerModel(Base):
     full_name = Column(String(100), nullable=False)
     gender = Column(String(1))
     age = Column(Integer)
-    email = Column(String(100))
+    email = Column(String(100), index=True)
     phone = Column(String(20))
+    bookings = relationship("BookingModel", back_populates="passenger")
 
 
 class BookingModel(Base):
     __tablename__ = "Bookings"
 
     booking_id = Column(Integer, primary_key=True, autoincrement=True)
-    flight_id = Column(Integer, ForeignKey("Flights.flight_id"), nullable=False)
-    passenger_id = Column(Integer, ForeignKey("Passengers.passenger_id"), nullable=False)
-    booking_date = Column(DateTime, server_default=func.now())
+    flight_id = Column(Integer, ForeignKey("Flights.flight_id"), nullable=False, index=True)
+    passenger_id = Column(Integer, ForeignKey("Passengers.passenger_id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("Users.user_id"), nullable=True, index=True)
+    booking_date = Column(DateTime, server_default=func.now(), index=True)
     seat_number = Column(String(5), nullable=True)
-    status = Column(String(20), default="Confirmed")
-    pnr = Column(String(20), unique=True, nullable=True)
+    status = Column(String(20), default="Confirmed", index=True)
+    pnr = Column(String(20), unique=True, nullable=True, index=True)
     price_per_seat = Column(DECIMAL(10, 2), nullable=True)
     total_price = Column(DECIMAL(12, 2), nullable=True)
+    user = relationship("UserModel")
+    flight = relationship("FlightModel", back_populates="bookings")
+    passenger = relationship("PassengerModel", back_populates="bookings")
 
 
 class PaymentModel(Base):
     __tablename__ = "Payments"
 
     payment_id = Column(Integer, primary_key=True, autoincrement=True)
-    booking_id = Column(Integer, ForeignKey("Bookings.booking_id"), nullable=False)
+    booking_id = Column(Integer, ForeignKey("Bookings.booking_id"), nullable=False, index=True)
     amount = Column(DECIMAL(12, 2), nullable=False)
     payment_status = Column(String(20), default="Success")
     payment_method = Column(String(30), default="Simulated")
@@ -93,13 +147,30 @@ class FareHistoryModel(Base):
     __tablename__ = "FareHistory"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    flight_id = Column(Integer, ForeignKey("Flights.flight_id"), nullable=False)
+    flight_id = Column(Integer, ForeignKey("Flights.flight_id"), nullable=False, index=True)
     recorded_at = Column(DateTime, server_default=func.now())
     price = Column(DECIMAL(10, 2), nullable=False)
 
 
+def _add_missing_columns() -> None:
+    inspector = inspect(engine)
+    table_names = set(inspector.get_table_names())
+
+    if "Bookings" in table_names:
+        booking_columns = {column["name"] for column in inspector.get_columns("Bookings")}
+        if "user_id" not in booking_columns and "Users" in table_names:
+            with engine.begin() as connection:
+                connection.execute(text('ALTER TABLE "Bookings" ADD COLUMN user_id INTEGER'))
+                if not DATABASE_URL.startswith("sqlite"):
+                    connection.execute(
+                        text(
+                            'ALTER TABLE "Bookings" ADD CONSTRAINT fk_bookings_user '
+                            'FOREIGN KEY (user_id) REFERENCES "Users" (user_id)'
+                        )
+                    )
+
+
 def seed_initial_data() -> None:
-    """Create the demo airlines and flights when a database has no flights."""
     db = SessionLocal()
     try:
         if db.query(FlightModel).first():
@@ -179,4 +250,5 @@ def seed_initial_data() -> None:
 
 def initialize_database() -> None:
     Base.metadata.create_all(bind=engine)
+    _add_missing_columns()
     seed_initial_data()

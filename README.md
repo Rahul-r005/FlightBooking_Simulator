@@ -10,16 +10,26 @@ The repository keeps the deployment entrypoint at `FlightBooking_backend.py` so 
 FlightBooking_backend.py        compatibility entrypoint
 flight_booking/
 ├── api.py                      FastAPI routes and HTTP behavior
+├── admin.py                    protected administrator API
+├── auth.py                     account/session authentication
+├── booking_service.py          shared booking cancellation behavior
 ├── database.py                 SQLAlchemy models, connection, and seed data
+├── notifications.py            in-app customer notifications
 ├── pricing.py                  flight fare calculations and PNR generation
 ├── schemas.py                  API request/response models
 └── simulator.py                background demand and seat simulation
 frontend/
 ├── index.html                  application page
-├── script.js                   browser API and booking interactions
-├── style.css                   application styles
+├── login.html                  sign-in page
+├── register.html               account registration page
+├── admin.html                  administrator workspace
+├── script.js                   booking interactions and account UI
+├── auth.js                     sign-in and registration browser flow
+├── admin.js                    administrator browser interactions
+├── style.css                   shared application styles
+├── logo.svg                    primary SkyBook brand mark
 ├── 404.html                    themed HTML 404 page
-└── favicon.svg                 SkyBook favicon
+└── favicon.*                   favicon and app icon set
 migrations/                     PostgreSQL schema migration
 FlightBookingDB.sql             standalone PostgreSQL bootstrap schema
 render.yaml                     Render web service and database definition
@@ -144,3 +154,26 @@ The free Render Postgres plan is suitable for the project's demo/development dep
 ## Deployment safety
 
 The Render service tracks `main` and auto-deploys repository changes. The application entrypoint and Render start command are intentionally unchanged by the code-organization refactor, so restructuring the Python modules does not require a deployment configuration migration.
+
+
+## Authentication and administration
+
+Bookings are authenticated server-side. Users create an account or sign in before the booking POST endpoint accepts a request. The session is stored in a database-backed server-side session and exposed through an HttpOnly, SameSite cookie; authentication tokens are not stored in browser localStorage.
+
+Every new booking stores the authenticated user ID in Bookings.user_id. Booking history, booking lookup, payment, receipt generation, and cancellation enforce ownership on the server.
+
+Administrators use the /admin page. Every admin API route checks the user's role server-side. Existing accounts default to role=user. To promote an existing account, run:
+
+```bash
+python scripts/promote_admin.py user@example.com
+```
+
+The command only changes an existing account and contains no built-in credentials.
+
+Admin cancellation preserves the booking as Cancelled, restores inventory, and creates an in-app notification for the affected customer. The repository did not contain an email provider, so no email dependency or secret was added.
+
+## Environment
+
+Copy .env.example for local development. Render's DATABASE_URL continues to be supplied by the existing Postgres connection. SESSION_TTL_HOURS defaults to 12 hours. ENVIRONMENT defaults to production, which enables the Secure session-cookie flag.
+
+Python is pinned to 3.11 through .python-version so CI and Render use the same supported runtime family. Render's build and start commands remain unchanged.

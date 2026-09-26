@@ -12,15 +12,21 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from .admin import router as admin_router
+from .auth import get_current_user, router as auth_router
+from .booking_service import cancel_booking
 from .database import (
     BookingModel,
     FareHistoryModel,
     FlightModel,
     PassengerModel,
     PaymentModel,
+    NotificationModel,
     SessionLocal,
+    UserModel,
     initialize_database,
 )
+from .notifications import create_notification
 from .pricing import calculate_dynamic_fare, calculate_legacy_fare, generate_pnr
 from .schemas import (
     BookingIn,
@@ -30,6 +36,7 @@ from .schemas import (
     DBFlightResponse,
     Flight,
     FlightOut,
+    NotificationResponse,
 )
 from .simulator import FlightAvailabilitySimulator
 
@@ -114,6 +121,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(auth_router)
+app.include_router(admin_router)
 
 
 @app.middleware("http")
@@ -127,6 +136,23 @@ async def themed_html_404(request: Request, call_next):
 @app.get("/")
 def home():
     return FileResponse("frontend/index.html")
+
+
+@app.get("/login")
+def login_page():
+    return FileResponse("frontend/login.html")
+
+
+@app.get("/register")
+def register_page():
+    return FileResponse("frontend/register.html")
+
+
+@app.get("/admin")
+def admin_page(user: UserModel = Depends(get_current_user)):
+    if user.role != "admin":
+        raise HTTPException(status_code=403, detail="Administrator access is required.")
+    return FileResponse("frontend/admin.html")
 
 
 @app.get("/health")
@@ -162,10 +188,7 @@ def search_legacy_flights(
             try:
                 search_date = datetime.strptime(date, "%Y-%m-%d").date()
             except ValueError as exc:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Invalid date format (YYYY-MM-DD)",
-                ) from exc
+                raise HTTPException(status_code=400, detail="Invalid date format (YYYY-MM-DD)") from exc
             if flight.departure_time.date() != search_date:
                 continue
         results.append(_legacy_flight_response(flight))
@@ -176,7 +199,10 @@ def search_legacy_flights(
 
 
 @app.post("/legacy/book", response_model=BookingOut)
-def create_legacy_booking(data: BookingIn):
+def create_legacy_booking(
+    data: BookingIn,
+    user: UserModel = Depends(get_current_user),
+):
     global legacy_booking_counter
 
     for flight in legacy_flights:
@@ -271,10 +297,11 @@ def _sort_legacy_flights(
     if sort_by not in {"price", "duration"}:
         raise HTTPException(status_code=400, detail="sort_by must be price or duration")
 
-    if sort_by == "price":
-        key = lambda flight: flight.dynamic_price
-    else:
-        key = lambda flight: flight.duration_minutes
+    key = (
+        (lambda flight: flight.dynamic_price)
+        if sort_by == "price"
+        else (lambda flight: flight.duration_minutes)
+    )
     flights.sort(key=key, reverse=order.lower() == "desc")
     return flights
 
@@ -308,12 +335,17 @@ def _booking_response(booking: BookingModel) -> DBBookingResponse:
         pnr=booking.pnr,
         flight_id=booking.flight_id,
         passenger_id=booking.passenger_id,
+        user_id=booking.user_id,
         seat_number=booking.seat_number,
         price_per_seat=float(booking.price_per_seat or 0),
         total_price=float(booking.total_price or 0),
         status=booking.status,
         booking_date=booking.booking_date,
     )
+
+
+def _booking_belongs_to_user(booking: BookingModel, user: UserModel) -> bool:
+    return booking.user_id == user.user_id or user.role == "admin"
 
 
 @app.get("/db/flights", response_model=List[DBFlightResponse])
@@ -335,10 +367,7 @@ def db_get_flights(
         try:
             target_date = datetime.strptime(date, "%Y-%m-%d").date()
         except ValueError as exc:
-            raise HTTPException(
-                status_code=400,
-                detail="Invalid date format (YYYY-MM-DD)",
-            ) from exc
+            raise HTTPException(status_code=400, detail="Invalid date format (YYYY-MM-DD)") from exc
         query = query.filter(func.date(FlightModel.departure_time) == target_date)
 
     flights = [_flight_response(flight) for flight in query.all()]
@@ -346,15 +375,9 @@ def db_get_flights(
     if sort_by not in (None, "price", "duration"):
         raise HTTPException(status_code=400, detail="sort_by must be price or duration")
     if sort_by == "price":
-        flights.sort(
-            key=lambda flight: flight.dynamic_price,
-            reverse=order.lower() == "desc",
-        )
+        flights.sort(key=lambda flight: flight.dynamic_price, reverse=order.lower() == "desc")
     elif sort_by == "duration":
-        flights.sort(
-            key=lambda flight: flight.duration_minutes,
-            reverse=order.lower() == "desc",
-        )
+        flights.sort(key=lambda flight: flight.duration_minutes, reverse=order.lower() == "desc")
     return flights
 
 
@@ -397,11 +420,7 @@ def _validate_seat(flight: FlightModel, requested_seat: Optional[str]) -> str:
     seat_number = (requested_seat or "").strip().upper()
     if not seat_number:
         raise HTTPException(status_code=400, detail="Seat number is required")
-    if (
-        len(seat_number) < 2
-        or not seat_number[:-1].isdigit()
-        or not seat_number[-1].isalpha()
-    ):
+    if len(seat_number) < 2 or not seat_number[:-1].isdigit() or not seat_number[-1].isalpha():
         raise HTTPException(status_code=400, detail="Seat number must look like 12A")
 
     row_number = int(seat_number[:-1])
@@ -425,10 +444,7 @@ def _seat_is_booked(db: Session, flight_id: int, seat_number: str) -> bool:
     )
 
 
-def _find_or_create_passenger(
-    db: Session,
-    request: DBBookingRequest,
-) -> PassengerModel:
+def _find_or_create_passenger(db: Session, request: DBBookingRequest) -> PassengerModel:
     if request.passenger_email:
         passenger = (
             db.query(PassengerModel)
@@ -448,14 +464,11 @@ def _find_or_create_passenger(
     return passenger
 
 
-@app.post(
-    "/db/booking",
-    response_model=DBBookingResponse,
-    status_code=status.HTTP_201_CREATED,
-)
+@app.post("/db/booking", response_model=DBBookingResponse, status_code=status.HTTP_201_CREATED)
 def db_create_booking(
     request: DBBookingRequest,
     db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
 ):
     try:
         with db.begin():
@@ -479,7 +492,6 @@ def db_create_booking(
 
             passenger = _find_or_create_passenger(db, request)
             price_per_seat = calculate_dynamic_fare(flight)
-
             payment_success = (
                 bool(request.force_payment_success)
                 if request.force_payment_success is not None
@@ -491,6 +503,7 @@ def db_create_booking(
             booking = BookingModel(
                 flight_id=flight.flight_id,
                 passenger_id=passenger.passenger_id,
+                user_id=user.user_id,
                 seat_number=seat_number,
                 status="Confirmed",
                 pnr=generate_pnr(),
@@ -499,7 +512,6 @@ def db_create_booking(
             )
             db.add(booking)
             db.flush()
-
             db.add(
                 PaymentModel(
                     booking_id=booking.booking_id,
@@ -514,33 +526,47 @@ def db_create_booking(
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Booking failed: {exc}") from exc
+        raise HTTPException(status_code=500, detail="Booking failed.") from exc
 
 
 @app.post("/receipt/pdf")
-def receipt_pdf(data: dict):
+def receipt_pdf(
+    data: dict,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    pnr = data.get("pnr")
+    if not pnr:
+        raise HTTPException(status_code=400, detail="PNR is required")
+    booking = db.query(BookingModel).filter(BookingModel.pnr == pnr).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if not _booking_belongs_to_user(booking, user):
+        raise HTTPException(status_code=403, detail="You do not have access to this booking.")
+
     try:
         from reportlab.pdfgen import canvas
     except ImportError as exc:
-        raise HTTPException(
-            status_code=500,
-            detail="Install reportlab: pip install reportlab",
-        ) from exc
+        raise HTTPException(status_code=500, detail="Receipt service is unavailable.") from exc
 
     buffer = io.BytesIO()
     pdf = canvas.Canvas(buffer)
-    pdf.setTitle("Flight Booking Receipt")
+    pdf.setTitle("SkyBook Flight Booking Receipt")
     pdf.setFont("Helvetica-Bold", 18)
-    pdf.drawString(60, 780, "Flight Booking Simulator")
+    pdf.drawString(60, 780, "SkyBook Flight Booking")
     pdf.setFont("Helvetica", 11)
 
+    details = {
+        "PNR": booking.pnr,
+        "Flight": booking.flight_id,
+        "Seat": booking.seat_number or "—",
+        "Status": booking.status,
+        "Total": f"₹{float(booking.total_price or 0):,.2f}",
+    }
     y_position = 740
-    for key, value in data.items():
+    for key, value in details.items():
         pdf.drawString(60, y_position, f"{key}: {value}")
         y_position -= 22
-        if y_position < 60:
-            pdf.showPage()
-            y_position = 780
 
     pdf.save()
     buffer.seek(0)
@@ -556,25 +582,28 @@ def db_pay_booking(
     pnr: str,
     force_success: Optional[bool] = None,
     db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
 ):
     booking = db.query(BookingModel).filter(BookingModel.pnr == pnr).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
+    if not _booking_belongs_to_user(booking, user):
+        raise HTTPException(status_code=403, detail="You do not have access to this booking.")
     if booking.status == "Confirmed":
         return _booking_response(booking)
 
-    payment_success = (
-        random.choice([True, False])
-        if force_success is None
-        else bool(force_success)
-    )
+    payment_success = random.choice([True, False]) if force_success is None else bool(force_success)
     booking.status = "Confirmed" if payment_success else "PAYMENT_FAILED"
     db.commit()
     return _booking_response(booking)
 
 
 @app.delete("/db/booking/{pnr}")
-def db_cancel_booking(pnr: str, db: Session = Depends(get_db)):
+def db_cancel_booking(
+    pnr: str,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
     try:
         with db.begin():
             booking = (
@@ -585,54 +614,83 @@ def db_cancel_booking(pnr: str, db: Session = Depends(get_db)):
             )
             if not booking:
                 raise HTTPException(status_code=404, detail="Booking not found")
-            if booking.status == "Cancelled":
-                raise HTTPException(status_code=400, detail="Already cancelled")
-
-            flight = (
-                db.query(FlightModel)
-                .with_for_update()
-                .filter(FlightModel.flight_id == booking.flight_id)
-                .first()
-            )
-            if not flight:
-                raise HTTPException(
-                    status_code=500,
-                    detail="Associated flight not found",
-                )
-
-            flight.available_seats = min(
-                flight.total_seats,
-                flight.available_seats + 1,
-            )
-            booking.status = "Cancelled"
-            booking.seat_number = None
-        return {"message": "Booking cancelled", "pnr": pnr}
+            if not _booking_belongs_to_user(booking, user):
+                raise HTTPException(status_code=403, detail="You do not have access to this booking.")
+            notification_created = cancel_booking(db, booking, notify_user=True)
+        return {
+            "message": "Booking cancelled.",
+            "pnr": pnr,
+            "notification_created": notification_created,
+        }
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Cancellation failed: {exc}",
-        ) from exc
+        raise HTTPException(status_code=500, detail="Cancellation failed.") from exc
 
 
 @app.get("/db/booking/{pnr}", response_model=DBBookingResponse)
-def db_get_booking(pnr: str, db: Session = Depends(get_db)):
+def db_get_booking(
+    pnr: str,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
     booking = db.query(BookingModel).filter(BookingModel.pnr == pnr).first()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
+    if not _booking_belongs_to_user(booking, user):
+        raise HTTPException(status_code=403, detail="You do not have access to this booking.")
     return _booking_response(booking)
 
 
 @app.get("/db/bookings", response_model=List[DBBookingResponse])
-def db_list_bookings(limit: int = 100, db: Session = Depends(get_db)):
+def db_list_bookings(
+    limit: int = Query(100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
     bookings = (
         db.query(BookingModel)
+        .filter(BookingModel.user_id == user.user_id)
         .order_by(BookingModel.booking_date.desc())
         .limit(limit)
         .all()
     )
     return [_booking_response(booking) for booking in bookings]
+
+
+@app.get("/notifications", response_model=List[NotificationResponse])
+def list_notifications(
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    return (
+        db.query(NotificationModel)
+        .filter(NotificationModel.user_id == user.user_id)
+        .order_by(NotificationModel.created_at.desc())
+        .limit(50)
+        .all()
+    )
+
+
+@app.post("/notifications/{notification_id}/read")
+def mark_notification_read(
+    notification_id: int,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    notification = (
+        db.query(NotificationModel)
+        .filter(
+            NotificationModel.notification_id == notification_id,
+            NotificationModel.user_id == user.user_id,
+        )
+        .first()
+    )
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    notification.read = True
+    db.commit()
+    return {"message": "Notification marked as read."}
 
 
 @app.get("/db/dynamic_price/{flight_id}")

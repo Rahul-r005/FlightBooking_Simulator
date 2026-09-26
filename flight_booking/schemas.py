@@ -81,6 +81,7 @@ class DBBookingResponse(BaseModel):
     pnr: str
     flight_id: int
     passenger_id: int
+    user_id: Optional[int]
     seat_number: Optional[str]
     price_per_seat: float
     total_price: float
@@ -88,3 +89,61 @@ class DBBookingResponse(BaseModel):
     booking_date: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class RegisterRequest(BaseModel):
+    full_name: str = Field(..., min_length=2, max_length=100)
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+class UserResponse(BaseModel):
+    user_id: int
+    email: EmailStr
+    full_name: str
+    role: str
+    suspended: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class NotificationResponse(BaseModel):
+    notification_id: int
+    message: str
+    booking_id: Optional[int]
+    created_at: datetime
+    read: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdminAccountResponse(UserResponse):
+    booking_count: int
+
+
+class AdminAccountStatusUpdate(BaseModel):
+    suspended: bool
+
+
+class AdminBookingUpdate(BaseModel):
+    seat_number: Optional[str] = None
+
+
+class AdminBookingResponse(DBBookingResponse):
+    passenger_name: str
+    passenger_email: Optional[EmailStr]
+    flight_number: str
+    source: str
+    destination: str
+    departure_time: datetime
+
+
+class AdminBookingCancellationResponse(BaseModel):
+    message: str
+    pnr: str
+    notification_created: bool

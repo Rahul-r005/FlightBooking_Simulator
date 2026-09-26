@@ -2,7 +2,7 @@ name: Recovery regression tests
 
 on:
   push:
-    branches: ["main", "repair/recovery-audit"]
+    branches: ["main", "repair/recovery-audit", "feature/admin-panel-secure-booking-audit"]
   pull_request:
 
 jobs:
@@ -10,14 +10,22 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DISABLE_BACKGROUND_SIMULATOR: "1"
+      DATABASE_URL: "sqlite:///./ci_flight_booking.db"
+      ENVIRONMENT: "development"
+      ALLOWED_ORIGINS: "http://127.0.0.1:8000,http://localhost:8000,http://localhost:5500"
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements.txt
-      - run: pip install pytest
-      - run: python -m compileall -q FlightBooking_backend.py flight_booking tests
+      - run: pip install pytest pip-audit
+      - run: pip-audit -r requirements.txt
+      - run: python -m compileall -q FlightBooking_backend.py flight_booking tests scripts
       - run: node --check frontend/script.js
+      - run: node --check frontend/auth.js
+      - run: node --check frontend/admin.js
       - run: python -m pytest -q
+      - run: uvicorn FlightBooking_backend:app --host 0.0.0.0 --port 8000 > /tmp/skybook.log 2>&1 &
+      - run: sleep 3 && curl --fail --silent --show-error http://127.0.0.1:8000/health

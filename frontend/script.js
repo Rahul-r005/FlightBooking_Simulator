@@ -4,6 +4,8 @@ const API = (configuredApi || window.location.origin || "http://127.0.0.1:8000")
 const flightList = document.querySelector("#flightList");
 const statusMessage = document.querySelector("#status");
 const bookingList = document.querySelector("#bookingList");
+const authLink = document.querySelector("#authLink");
+let currentUser = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -24,7 +26,7 @@ function showStatus(message, isError = false) {
 }
 
 async function apiRequest(path, options = {}) {
-  const response = await fetch(`${API}${path}`, options);
+  const response = await fetch(`${API}${path}`, { credentials: "include", ...options });
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
@@ -95,6 +97,14 @@ async function loadFlights() {
   }
 }
 
+function redirectToSignIn(flightId, flightName, price) {
+  const returnUrl = new URL("/", window.location.origin);
+  returnUrl.searchParams.set("flight", flightId);
+  returnUrl.searchParams.set("flightName", flightName);
+  returnUrl.searchParams.set("price", price);
+  window.location.href = `/login?return=${encodeURIComponent(returnUrl.pathname + returnUrl.search)}`;
+}
+
 function openBooking(flightId, flightName, price) {
   document.querySelector("#bookingForm").reset();
   document.querySelector("#flightId").value = flightId;
@@ -139,6 +149,10 @@ async function submitBooking(event) {
 }
 
 async function loadBookings() {
+  if (!currentUser) {
+    bookingList.innerHTML = '<div class="status">Sign in to view your bookings.</div>';
+    return;
+  }
   bookingList.innerHTML = '<div class="status">Loading…</div>';
 
   try {
@@ -221,6 +235,15 @@ document.querySelector("#flightList").addEventListener("click", (event) => {
     return;
   }
 
+  if (!currentUser) {
+    redirectToSignIn(
+      Number(button.dataset.flightId),
+      button.dataset.flightName,
+      Number(button.dataset.price),
+    );
+    return;
+  }
+
   openBooking(
     Number(button.dataset.flightId),
     button.dataset.flightName,
@@ -244,3 +267,48 @@ document.querySelector("#bookingList").addEventListener("click", (event) => {
 document.querySelector("#loadBookings").addEventListener("click", loadBookings);
 
 loadFlights();
+
+
+async function loadCurrentUser() {
+  try {
+    currentUser = await apiRequest("/auth/me");
+    authLink.textContent = currentUser.role === "admin" ? "Admin" : "Sign out";
+    authLink.href = currentUser.role === "admin" ? "/admin" : "#";
+    if (currentUser.role === "admin") {
+      authLink.dataset.admin = "true";
+    } else {
+      authLink.addEventListener("click", async (event) => {
+        event.preventDefault();
+        await apiRequest("/auth/logout", { method: "POST" });
+        window.location.reload();
+      });
+    }
+  } catch (_error) {
+    currentUser = null;
+    authLink.textContent = "Sign in";
+    authLink.href = "/login?return=%2F";
+  }
+}
+
+async function resumePendingBooking() {
+  const params = new URLSearchParams(window.location.search);
+  const flightId = params.get("flight");
+  if (!flightId || !currentUser) {
+    return;
+  }
+  const flight = await getFlights();
+  const selected = flight.find((item) => item.flight_id === Number(flightId));
+  if (selected) {
+    openBooking(
+      selected.flight_id,
+      selected.airline + " " + selected.flight_number,
+      selected.dynamic_price,
+    );
+    window.history.replaceState({}, document.title, "/");
+  }
+}
+
+(async function initializeAccountUi() {
+  await loadCurrentUser();
+  await resumePendingBooking();
+})();
