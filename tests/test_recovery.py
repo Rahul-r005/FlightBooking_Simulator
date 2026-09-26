@@ -1,14 +1,5 @@
-import os
-from pathlib import Path
-
-DB_FILE = Path("flight_booking_test.db")
-if DB_FILE.exists():
-    DB_FILE.unlink()
-
-os.environ["DATABASE_URL"] = "sqlite:///./flight_booking_test.db"
-os.environ["DISABLE_BACKGROUND_SIMULATOR"] = "1"
-
 from fastapi.testclient import TestClient
+
 from FlightBooking_backend import app
 
 
@@ -17,8 +8,7 @@ def test_health_and_seeded_flights():
         assert client.get("/health").status_code == 200
         response = client.get("/flights")
         assert response.status_code == 200
-        flights = response.json()
-        assert len(flights) >= 3
+        assert len(response.json()) >= 3
 
 
 def test_booking_cancellation_and_seat_reuse():
@@ -60,9 +50,7 @@ def test_booking_cancellation_and_seat_reuse():
             },
         )
         assert reused.status_code == 201, reused.text
-
-        pnr2 = reused.json()["pnr"]
-        client.delete(f"/db/booking/{pnr2}")
+        client.delete(f"/db/booking/{reused.json()['pnr']}")
 
 
 def test_duplicate_seat_is_rejected():
@@ -74,7 +62,6 @@ def test_duplicate_seat_is_rejected():
             json={
                 "flight_id": flight_id,
                 "passenger_name": "Seat Holder One",
-                "passenger_email": "seat1@example.com",
                 "seat_number": "2A",
                 "force_payment_success": True,
             },
@@ -86,11 +73,9 @@ def test_duplicate_seat_is_rejected():
             json={
                 "flight_id": flight_id,
                 "passenger_name": "Seat Holder Two",
-                "passenger_email": "seat2@example.com",
                 "seat_number": "2A",
                 "force_payment_success": True,
             },
         )
         assert second.status_code == 409, second.text
-
         client.delete(f"/db/booking/{first.json()['pnr']}")
