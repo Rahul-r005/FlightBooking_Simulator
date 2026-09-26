@@ -1,7 +1,5 @@
 
 from fastapi import Response, FastAPI, HTTPException, Query, Depends, status
-from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
