@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from FlightBooking_backend import FlightModel, SessionLocal, UserModel, app
+from FlightBooking_backend import BookingModel, SessionLocal, UserModel, app
 
 
 def register(client: TestClient, email: str, name: str) -> None:
@@ -75,11 +75,7 @@ def test_admin_can_manage_accounts_and_cancel_booking():
         assert cancellation.json()["notification_created"] is True
 
         db = SessionLocal()
-        booking_record = next(
-            booking
-            for booking in db.query(__import__("flight_booking.database", fromlist=["BookingModel"]).BookingModel).all()
-            if booking.pnr == pnr
-        )
+        booking_record = db.query(BookingModel).filter(BookingModel.pnr == pnr).first()
         assert booking_record.status == "Cancelled"
         assert booking_record.seat_number is None
         db.close()
