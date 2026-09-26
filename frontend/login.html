@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <meta name="theme-color" content="#3157d5">
+  <title>Sign in — SkyBook</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+    <a class="brand auth-brand" href="/"><img src="/logo.svg" alt="SkyBook"></a>
+    <p class="eyebrow">WELCOME BACK</p>
+    <h1>Sign in to SkyBook</h1>
+    <p class="muted">Your booking history and account details stay protected behind your sign-in.</p>
+    <form id="loginForm" class="auth-form">
+      <label>Email<input id="email" type="email" autocomplete="email" required></label>
+      <label>Password<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
+      <button class="primary-btn" type="submit">Sign in</button>
+    </form>
+    <div id="authStatus" class="status"></div>
+    <p class="auth-switch">New to SkyBook? <a href="/register">Create an account</a></p>
+  </main>
+  <script src="/auth.js"></script>
+</body>
+</html>
