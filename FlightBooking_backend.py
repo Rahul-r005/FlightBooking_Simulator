@@ -1,5 +1,5 @@
 
-from fastapi import Response, FastAPI, HTTPException, Query, Depends, status
+from fastapi import Request, Response, FastAPI, HTTPException, Query, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -43,6 +43,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def themed_html_404(request: Request, call_next):
+    response = await call_next(request)
+    if response.status_code == 404 and "text/html" in request.headers.get("accept", ""):
+        return FileResponse("frontend/404.html", status_code=404)
+    return response
 # ----------------------------
 # --- Original in-memory models & endpoints (kept) ---
 # ----------------------------
