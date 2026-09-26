@@ -1,9 +1,10 @@
 import os
 
 os.environ["DATABASE_URL"] = "sqlite:///./flight_booking_test.db"
+os.environ["DISABLE_BACKGROUND_SIMULATOR"] = "1"
 
 from fastapi.testclient import TestClient
-from FlightBooking_backend import SessionLocal, FlightModel, BookingModel, app
+from FlightBooking_backend import app
 
 
 def test_health_and_seeded_flights():
