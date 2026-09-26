@@ -132,7 +132,6 @@ class AdminAccountStatusUpdate(BaseModel):
 
 class AdminBookingUpdate(BaseModel):
     seat_number: Optional[str] = None
-    status: Optional[str] = None
 
 
 class AdminBookingResponse(DBBookingResponse):
