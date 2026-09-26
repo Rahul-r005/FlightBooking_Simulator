@@ -158,3 +158,12 @@ The branch workflow is configured to run:
 - an HTTP request to /health
 
 No final production deployment should be considered verified until these checks pass and the new commit is live on Render.
+
+
+## Final verification snapshot
+
+- GitHub Actions run 74 on the feature branch completed successfully before the final workflow-runtime-only cleanup.
+- The final workflow-runtime cleanup updates checkout/setup-python to current Node 24 action releases; it is itself subject to the same workflow test gate before merge.
+- The successful application verification recorded 7 pytest tests passing, pip-audit reporting no known vulnerabilities, all three JavaScript syntax checks passing, Python compilation passing, and the real uvicorn start plus /health curl succeeding.
+- The only warning in that successful run was from the GitHub Actions runner forcing older Node 20-based action releases; the workflow has since been updated to current action releases, so this warning is being removed rather than accepted.
+- Render remains on the previously verified live main deployment and has not been changed by this feature branch. The live deployment remains commit 099f317d3612ce17557a27fe43c1e0cf1ad0ec81; no feature-branch deployment was sent to production.
