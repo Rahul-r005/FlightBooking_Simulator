@@ -29,7 +29,7 @@ def cancel_booking(
     notification_created = False
     if notify_user and booking.user_id:
         user = db.get(UserModel, booking.user_id)
-        if user:
+        if user and user.notifications_enabled:
             create_notification(
                 db,
                 user,
