@@ -3,14 +3,52 @@ services:
     name: flightbooking-api
     runtime: python
     plan: free
+    region: singapore
     branch: main
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn FlightBooking_backend:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
-      - key: ALLOWED_ORIGINS
-        sync: false
-      - key: DATABASE_URL
-        sync: false
+      - key: DB_HOST
+        fromService:
+          name: flightbooking-mysql
+          type: pserv
+          property: host
+      - key: DB_PORT
+        fromService:
+          name: flightbooking-mysql
+          type: pserv
+          property: port
+      - key: DB_USER
+        fromService:
+          name: flightbooking-mysql
+          type: pserv
+          envVarKey: MYSQL_USER
+      - key: DB_PASS
+        fromService:
+          name: flightbooking-mysql
+          type: pserv
+          envVarKey: MYSQL_PASSWORD
+      - key: DB_NAME
+        value: flight_booking
+
+  - type: pserv
+    name: flightbooking-mysql
+    runtime: docker
+    plan: 0.5c-512mb
+    region: singapore
+    repo: https://github.com/render-examples/mysql.git
+    branch: master
+    envVars:
+      - key: MYSQL_DATABASE
+        value: flight_booking
+      - key: MYSQL_USER
+        value: flightapp
+      - key: MYSQL_PASSWORD
+        generateValue: true
+      - key: MYSQL_ROOT_PASSWORD
+        generateValue: true
+    disk:
+      name: mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 10
