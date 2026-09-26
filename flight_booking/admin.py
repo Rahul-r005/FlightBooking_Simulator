@@ -29,6 +29,7 @@ def _account_response(db: Session, user: UserModel) -> AdminAccountResponse:
         full_name=user.full_name,
         role=user.role,
         suspended=user.suspended,
+        notifications_enabled=user.notifications_enabled,
         booking_count=booking_count,
     )
 
