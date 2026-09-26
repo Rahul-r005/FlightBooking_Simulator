@@ -26,6 +26,7 @@ jobs:
       - run: node --check frontend/script.js
       - run: node --check frontend/auth.js
       - run: node --check frontend/admin.js
+      - run: node --check frontend/settings.js
       - run: python -m pytest -q
       - run: uvicorn FlightBooking_backend:app --host 0.0.0.0 --port 8000 > /tmp/skybook.log 2>&1 &
       - run: sleep 3 && curl --fail --silent --show-error http://127.0.0.1:8000/health

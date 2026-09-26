@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#3157d5">
+  <meta name="description" content="Manage your SkyBook account, appearance, notifications and security settings.">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/settings.css">
+  <title>Settings — SkyBook</title>
+</head>
+<body class="settings-page">
+  <header class="navbar">
+    <a class="brand" href="/"><img src="/logo.svg" alt="SkyBook"></a>
+    <nav>
+      <a href="/">Flights</a>
+      <a href="/#bookings">Bookings</a>
+      <a href="/settings" aria-current="page">Settings</a>
+    </nav>
+  </header>
+
+  <main class="settings-shell">
+    <div class="settings-heading">
+      <div>
+        <p class="eyebrow">ACCOUNT SETTINGS</p>
+        <h1>Make SkyBook yours.</h1>
+        <p class="muted">Manage your profile, preferences and account security.</p>
+      </div>
+      <a class="ghost-btn" href="/">← Back to flights</a>
+    </div>
+
+    <div class="settings-layout">
+      <aside class="settings-menu" aria-label="Settings sections">
+        <a href="#account">Account</a>
+        <a href="#appearance">Appearance</a>
+        <a href="#notifications">Notifications</a>
+        <a href="#security">Security</a>
+        <a href="#session">Session</a>
+      </aside>
+
+      <div class="settings-content">
+        <section id="account" class="settings-card">
+          <div class="settings-card-heading">
+            <div>
+              <h2>Account</h2>
+              <p class="muted">Keep your personal details up to date.</p>
+            </div>
+            <span id="accountRole" class="settings-badge"></span>
+          </div>
+          <form id="profileForm" class="settings-form">
+            <label>
+              Full name
+              <input id="fullName" name="full_name" autocomplete="name" required minlength="2" maxlength="100">
+            </label>
+            <label>
+              Email address
+              <input id="email" name="email" type="email" autocomplete="email" readonly>
+              <small>Your sign-in email is managed as part of your account identity.</small>
+            </label>
+            <button class="primary-btn" type="submit">Save profile</button>
+          </form>
+          <div id="profileStatus" class="settings-status" role="status"></div>
+        </section>
+
+        <section id="appearance" class="settings-card">
+          <div class="settings-card-heading">
+            <div>
+              <h2>Appearance</h2>
+              <p class="muted">Choose how SkyBook looks on this device.</p>
+            </div>
+          </div>
+          <label class="settings-select">
+            Theme
+            <select id="themeSelect">
+              <option value="system">System default</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <p class="settings-help">Your appearance choice is stored in this browser and does not affect your account on other devices.</p>
+        </section>
+
+        <section id="notifications" class="settings-card">
+          <div class="settings-card-heading">
+            <div>
+              <h2>Notifications</h2>
+              <p class="muted">Control booking-related notifications from SkyBook.</p>
+            </div>
+          </div>
+          <label class="toggle-row">
+            <span>
+              <strong>Booking notifications</strong>
+              <small>Receive in-app updates when a booking is cancelled or changed.</small>
+            </span>
+            <input id="notificationsEnabled" type="checkbox">
+          </label>
+          <div id="notificationStatus" class="settings-status" role="status"></div>
+        </section>
+
+        <section id="security" class="settings-card">
+          <div class="settings-card-heading">
+            <div>
+              <h2>Security</h2>
+              <p class="muted">Change your password while keeping your account protected.</p>
+            </div>
+          </div>
+          <form id="passwordForm" class="settings-form">
+            <label>
+              Current password
+              <input id="currentPassword" type="password" autocomplete="current-password" minlength="8" required>
+            </label>
+            <label>
+              New password
+              <input id="newPassword" type="password" autocomplete="new-password" minlength="8" required>
+            </label>
+            <label>
+              Confirm new password
+              <input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required>
+            </label>
+            <button class="primary-btn" type="submit">Change password</button>
+          </form>
+          <div id="passwordStatus" class="settings-status" role="status"></div>
+          <p class="settings-help">Changing your password refreshes your active session and signs out older sessions for this account.</p>
+        </section>
+
+        <section id="session" class="settings-card settings-danger">
+          <div class="settings-card-heading">
+            <div>
+              <h2>Session</h2>
+              <p class="muted">Finished using SkyBook? End your current session here.</p>
+            </div>
+          </div>
+          <button id="logoutButton" class="danger-btn" type="button">Log out</button>
+          <p class="settings-help">Logging out invalidates your current server-side session.</p>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer>SkyBook • Flight Booking Simulator with Dynamic Pricing</footer>
+  <script src="/settings.js"></script>
+</body>
+</html>

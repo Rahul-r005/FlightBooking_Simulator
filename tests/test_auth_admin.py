@@ -92,3 +92,44 @@ def test_admin_can_manage_accounts_and_cancel_booking():
         notifications = client.get("/notifications")
         assert notifications.status_code == 200
         assert any(pnr in item["message"] for item in notifications.json())
+
+
+def test_user_settings_profile_preferences_password_and_logout():
+    with TestClient(app) as client:
+        register(client, "settings@example.com", "Settings User")
+
+        profile = client.patch("/auth/profile", json={"full_name": "Updated Settings User"})
+        assert profile.status_code == 200, profile.text
+        assert profile.json()["full_name"] == "Updated Settings User"
+
+        preferences = client.patch(
+            "/auth/preferences",
+            json={"notifications_enabled": False},
+        )
+        assert preferences.status_code == 200, preferences.text
+        assert preferences.json()["notifications_enabled"] is False
+
+        password = client.patch(
+            "/auth/password",
+            json={
+                "current_password": "correct-horse-battery",
+                "new_password": "new-correct-horse",
+            },
+        )
+        assert password.status_code == 200, password.text
+
+        current = client.get("/auth/me")
+        assert current.status_code == 200
+        assert current.json()["full_name"] == "Updated Settings User"
+
+        client.post("/auth/logout")
+        assert client.get("/auth/me").status_code == 401
+
+        login = client.post(
+            "/auth/login",
+            json={
+                "email": "settings@example.com",
+                "password": "new-correct-horse",
+            },
+        )
+        assert login.status_code == 200, login.text

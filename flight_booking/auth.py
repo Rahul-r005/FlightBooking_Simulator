@@ -8,7 +8,14 @@ from pwdlib import PasswordHash
 from sqlalchemy.orm import Session
 
 from .database import SessionLocal, SessionModel, UserModel
-from .schemas import LoginRequest, RegisterRequest, UserResponse
+from .schemas import (
+    ChangePasswordRequest,
+    LoginRequest,
+    PreferencesUpdateRequest,
+    ProfileUpdateRequest,
+    RegisterRequest,
+    UserResponse,
+)
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -154,6 +161,71 @@ def login(request: LoginRequest, response: Response, db: Session = Depends(lambd
         db.commit()
         _set_session_cookie(response, token)
         return user
+    finally:
+        db.close()
+
+
+@router.patch("/profile", response_model=UserResponse)
+def update_profile(
+    request: ProfileUpdateRequest,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(lambda: SessionLocal()),
+):
+    try:
+        managed_user = db.get(UserModel, user.user_id)
+        if not managed_user:
+            raise HTTPException(status_code=404, detail="Account not found.")
+        managed_user.full_name = request.full_name.strip()
+        db.commit()
+        db.refresh(managed_user)
+        return managed_user
+    finally:
+        db.close()
+
+
+@router.patch("/password", response_model=UserResponse)
+def change_password(
+    request: ChangePasswordRequest,
+    response: Response,
+    session_token: str | None = Cookie(default=None, alias=SESSION_COOKIE),
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(lambda: SessionLocal()),
+):
+    try:
+        managed_user = db.get(UserModel, user.user_id)
+        if not managed_user:
+            raise HTTPException(status_code=404, detail="Account not found.")
+        if not verify_password(request.current_password, managed_user.password_hash):
+            raise HTTPException(status_code=400, detail="Current password is incorrect.")
+        if request.current_password == request.new_password:
+            raise HTTPException(status_code=400, detail="New password must be different.")
+
+        managed_user.password_hash = hash_password(request.new_password)
+        db.query(SessionModel).filter(SessionModel.user_id == managed_user.user_id).delete(
+            synchronize_session=False
+        )
+        token = _create_session(db, managed_user)
+        db.commit()
+        _set_session_cookie(response, token)
+        return managed_user
+    finally:
+        db.close()
+
+
+@router.patch("/preferences", response_model=UserResponse)
+def update_preferences(
+    request: PreferencesUpdateRequest,
+    user: UserModel = Depends(get_current_user),
+    db: Session = Depends(lambda: SessionLocal()),
+):
+    try:
+        managed_user = db.get(UserModel, user.user_id)
+        if not managed_user:
+            raise HTTPException(status_code=404, detail="Account not found.")
+        managed_user.notifications_enabled = request.notifications_enabled
+        db.commit()
+        db.refresh(managed_user)
+        return managed_user
     finally:
         db.close()
 

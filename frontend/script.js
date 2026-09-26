@@ -1,3 +1,9 @@
+function applyStoredTheme() {
+  document.documentElement.dataset.theme = localStorage.getItem("skybook-theme") || "system";
+}
+
+applyStoredTheme();
+
 const configuredApi = localStorage.getItem("API_URL");
 const API = (configuredApi || window.location.origin || "http://127.0.0.1:8000").replace(/\/$/, "");
 
@@ -269,22 +275,29 @@ document.querySelector("#loadBookings").addEventListener("click", loadBookings);
 loadFlights();
 
 
+async function signOut() {
+  try {
+    await apiRequest("/auth/logout", { method: "POST" });
+  } finally {
+    window.location.href = "/";
+  }
+}
+
 async function loadCurrentUser() {
   try {
     currentUser = await apiRequest("/auth/me");
-    authLink.textContent = currentUser.role === "admin" ? "Admin" : "Sign out";
-    authLink.href = currentUser.role === "admin" ? "/admin" : "#";
-    if (currentUser.role === "admin") {
-      authLink.dataset.admin = "true";
-    } else {
-      authLink.addEventListener("click", async (event) => {
-        event.preventDefault();
-        await apiRequest("/auth/logout", { method: "POST" });
-        window.location.reload();
-      });
-    }
+    document.querySelector("#settingsLink").classList.remove("hidden");
+    document.querySelector("#adminLink").classList.toggle("hidden", currentUser.role !== "admin");
+    authLink.textContent = "Sign out";
+    authLink.href = "#";
+    authLink.addEventListener("click", async (event) => {
+      event.preventDefault();
+      await signOut();
+    });
   } catch (_error) {
     currentUser = null;
+    document.querySelector("#settingsLink").classList.add("hidden");
+    document.querySelector("#adminLink").classList.add("hidden");
     authLink.textContent = "Sign in";
     authLink.href = "/login?return=%2F";
   }
