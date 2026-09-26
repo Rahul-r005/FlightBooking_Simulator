@@ -1,61 +1,138 @@
-✈️ Flight Booking Simulator with Dynamic Pricing
-A FastAPI-based web application built using Python, React, HTML, and CSS, designed to simulate flight bookings with dynamic pricing logic instead of fixed ticket prices.
-Developed as part of an internship, this project focuses on backend logic, frontend interaction, and a realistic airline-like booking simulation.
+# ✈️ Flight Booking Simulator
 
-🎥 Project Overview
-🌟 Features
-🔐 Secure user authentication (Signup, Login, Logout)
-🛫 Search and book flights with dynamically changing prices
-💸 Prices vary based on seat availability, time to departure, and demand
-🧾 Displays booking details and ticket confirmation after simulated payment
-🔁 Supports both one-way and round-trip bookings
-📜 Allows users to view and manage their booking history
-🧑‍💼 Admin panel for managing flights, users, and dynamic pricing logic
-💻 Responsive and clean UI built with React
-🧩 Fully self-contained — no external airline APIs required
-🧩 Tech Stack
-Frontend
-HTML
-CSS
-JS
+A self-contained FastAPI flight-booking simulator with a browser frontend and database-backed dynamic pricing.
 
-Backend
-FastAPI (Python Framework)
+## Current architecture
 
-Database
-MySQL
+- **Frontend:** HTML, CSS and JavaScript in `frontend/`
+- **Backend:** FastAPI in `FlightBooking_backend.py`
+- **ORM:** SQLAlchemy
+- **Production database:** Render Postgres
+- **Local fallback:** SQLite (`flight_booking.db`)
+- **Deployment:** Render Blueprint in `render.yaml`
+- **Tests:** pytest + FastAPI TestClient
 
-Development Tools
-Visual Studio Code
-Git & GitHub
-SQLAlchemy / Pydantic (for database models and validation)
+The application serves the frontend and API from the same FastAPI web service.
 
-🏗️ System Architecture
-The project follows a Three-Tier Architecture:
+## Features
 
-1️⃣ Presentation Layer (Frontend)
-Built using HTML,CSS and JS
-Provides real-time flight data and dynamic price updates
+- Search flights by origin, destination and date
+- Dynamic pricing based on demand, seat availability and time to departure
+- Database-backed flight inventory
+- Seat validation and duplicate-seat protection
+- Simulated payment
+- Booking confirmation with PNR
+- Booking history
+- Booking cancellation with seat restoration
+- Cancelled seats can be booked again
+- Dynamic fare history
+- PDF receipt endpoint
+- Background demand/availability simulation
+- Starter flight data is created automatically when an empty database is detected
 
-2️⃣ Application Layer (Backend - FastAPI)
-Handles authentication, flight search, and booking logic
-Implements dynamic pricing algorithms and seat availability tracking
-Exposes RESTful APIs consumed by the frontend
+## API
 
-3️⃣ Data Layer (Database - MySQL)
-Stores user, flight, and booking information
-Maintains transaction details and price adjustments
-Flow:
-User → Frontend → FastAPI Endpoints → MySQL Database → JSON Response → Rendered UI
+### Health
+`GET /health`
 
-🧠 Future Scope
-💡 Coupon Code System — Apply discounts during booking (in progress)
-💬 Email Notifications — Send booking and payment confirmations
-🔁 Refund Module — Handle flight cancellations and refunds
-🧭 Real API Integration — Connect with live airline APIs like Amadeus or Skyscanner
-📊 Admin Dashboard — Visualize bookings, pricing trends, and demand analytics
-⚡ Justification
-🧱 Fully self-contained — no real airline data required
-🧠 Demonstrates real-world dynamic pricing and booking logic
-📱 Built with React frontend and FastAPI backend
-🧩 Modular and extensible — easy to adapt for research or academic purposes
+### Flights
+- `GET /flights`
+- `GET /flights/search`
+- `GET /db/flights`
+- `GET /db/flights/{flight_id}`
+- `GET /db/dynamic_price/{flight_id}`
+
+### Booking
+- `POST /db/booking`
+- `GET /db/bookings`
+- `GET /db/booking/{pnr}`
+- `DELETE /db/booking/{pnr}`
+- `POST /db/bookings/{pnr}/pay`
+- `POST /receipt/pdf`
+
+The older in-memory demonstration endpoints remain under `/legacy/`.
+
+## Local development
+
+Create a virtual environment and install dependencies:
+
+```bash
+python -m venv .venv
+# Windows
+.venv\\Scripts\\activate
+# macOS/Linux
+source .venv/bin/activate
+
+pip install -r requirements.txt
+uvicorn FlightBooking_backend:app --reload
+```
+
+Open:
+
+```
+http://127.0.0.1:8000
+```
+
+When `DATABASE_URL` is not provided, the application uses local SQLite automatically.
+
+## Render deployment
+
+The repository contains `render.yaml`, which defines:
+
+1. A free Render Python web service.
+2. A free Render Postgres database.
+3. An internal `DATABASE_URL` connection from the web service to the Postgres database.
+
+Render's Blueprint `fromDatabase.connectionString` provides the Postgres connection string to the service. The application explicitly converts Render's `postgresql://` URL to SQLAlchemy's `postgresql+psycopg2://` dialect because the project installs `psycopg2-binary`.
+
+To deploy, connect the repository to Render and create a new Blueprint instance from `render.yaml`.
+
+## Verification
+
+The CI workflow in `.github/workflows/recovery-tests.yml` checks:
+
+- Python compilation
+- JavaScript syntax
+- API health
+- automatic starter-data creation
+- flight retrieval
+- booking
+- seat availability changes
+- booking cancellation
+- seat reuse after cancellation
+- duplicate-seat rejection
+
+Run locally:
+
+```bash
+pip install -r requirements.txt
+pip install pytest
+python -m compileall -q FlightBooking_backend.py tests
+node --check frontend/script.js
+python -m pytest -q
+```
+
+## Database notes
+
+The application creates its SQLAlchemy tables automatically at startup. `FlightBookingDB.sql` is a standalone PostgreSQL bootstrap script for manual database setup; Render deployment does not require running it.
+
+Free Render Postgres instances have a limited lifetime, so the deployment is intended for development/demo use rather than durable production storage.
+
+## Project structure
+
+```text
+.
+├── FlightBooking_backend.py
+├── frontend/
+│   ├── index.html
+│   ├── script.js
+│   └── style.css
+├── tests/
+│   └── test_recovery.py
+├── migrations/
+│   └── 001_booking_seat_reuse.sql
+├── FlightBookingDB.sql
+├── requirements.txt
+├── render.yaml
+└── .github/workflows/recovery-tests.yml
+```
