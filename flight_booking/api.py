@@ -21,6 +21,7 @@ from .database import (
     FlightModel,
     PassengerModel,
     PaymentModel,
+    NotificationModel,
     SessionLocal,
     UserModel,
     initialize_database,
@@ -662,18 +663,13 @@ def list_notifications(
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
-    notifications = (
-        db.query(__import__("flight_booking.database", fromlist=["NotificationModel"]).NotificationModel)
-        .filter(
-            __import__("flight_booking.database", fromlist=["NotificationModel"]).NotificationModel.user_id == user.user_id
-        )
-        .order_by(
-            __import__("flight_booking.database", fromlist=["NotificationModel"]).NotificationModel.created_at.desc()
-        )
+    return (
+        db.query(NotificationModel)
+        .filter(NotificationModel.user_id == user.user_id)
+        .order_by(NotificationModel.created_at.desc())
         .limit(50)
         .all()
     )
-    return notifications
 
 
 @app.post("/notifications/{notification_id}/read")
@@ -682,15 +678,11 @@ def mark_notification_read(
     db: Session = Depends(get_db),
     user: UserModel = Depends(get_current_user),
 ):
-    notification_model = __import__(
-        "flight_booking.database",
-        fromlist=["NotificationModel"],
-    ).NotificationModel
     notification = (
-        db.query(notification_model)
+        db.query(NotificationModel)
         .filter(
-            notification_model.notification_id == notification_id,
-            notification_model.user_id == user.user_id,
+            NotificationModel.notification_id == notification_id,
+            NotificationModel.user_id == user.user_id,
         )
         .first()
     )
