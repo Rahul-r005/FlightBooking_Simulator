@@ -550,7 +550,9 @@ def background_simulator(interval_seconds: int = 30):
 
 @app.on_event("startup")
 def start_background():
-    threading.Thread(target=background_simulator, args=(30,), daemon=True).start()
+    disabled = os.getenv("DISABLE_BACKGROUND_SIMULATOR", "").lower() in {"1", "true", "yes"}
+    if not disabled:
+        threading.Thread(target=background_simulator, args=(30,), daemon=True).start()
 
 @app.on_event("shutdown")
 def stop_background():
