@@ -1,5 +1,7 @@
 
 from fastapi import Response, FastAPI, HTTPException, Query, Depends, status
+from fastapi.middleware.cors import CORSMiddleware
+
 from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -19,6 +21,21 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship, Session
 # Basic FastAPI app
 # ----------------------------
 app = FastAPI(title="Flight Booking Simulator with Dynamic Pricing")
+
+# Explicit local/deployment origins; override with ALLOWED_ORIGINS when needed.
+_allowed_origins = [
+    origin.strip() for origin in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:3000,http://localhost:5173,http://localhost:5500,http://127.0.0.1:3000,http://127.0.0.1:5173,http://127.0.0.1:5500"
+    ).split(",") if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # ----------------------------
 # --- Original in-memory models & endpoints (kept) ---
 # ----------------------------
@@ -129,7 +146,7 @@ def dynamic_pricing(f: Flight) -> float:
 def home():
     return {"message": "Welcome to Flight Booking System"}
 
-@app.get("/flights", response_model=List[FlightOut])
+@app.get("/legacy/flights", response_model=List[FlightOut])
 def get_all_flights(sort_by: Optional[str] = Query(None), order: Optional[str] = Query("asc")):
     result = []
     for f in flights:
@@ -156,7 +173,7 @@ def get_all_flights(sort_by: Optional[str] = Query(None), order: Optional[str] =
         result.sort(key=key_func, reverse=reverse)
     return result
 
-@app.get("/flights/search", response_model=List[FlightOut])
+@app.get("/legacy/flights/search", response_model=List[FlightOut])
 def search_flights(
     origin: str, destination: str, date: Optional[str] = Query(None),
     sort_by: Optional[str] = Query(None), order: Optional[str] = Query("asc")
@@ -196,7 +213,7 @@ def search_flights(
         results.sort(key=key_func, reverse=reverse)
     return results
 
-@app.post("/book", response_model=BookingOut)
+@app.post("/legacy/book", response_model=BookingOut)
 def create_booking(data: BookingIn):
     global booking_counter
     for f in flights:
@@ -309,7 +326,7 @@ class BookingModel(Base):
     flight_id = Column(Integer, ForeignKey("Flights.flight_id"))
     passenger_id = Column(Integer, ForeignKey("Passengers.passenger_id"))
     booking_date = Column(DateTime, server_default=func.now())
-    seat_number = Column(String(5))
+    seat_number = Column(String(5), nullable=True)
     status = Column(String(20), default="Confirmed")
     pnr = Column(String(20), unique=True, nullable=True)
     price_per_seat = Column(DECIMAL(10,2), nullable=True)
