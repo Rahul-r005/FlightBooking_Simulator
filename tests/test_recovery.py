@@ -1,4 +1,9 @@
 import os
+from pathlib import Path
+
+DB_FILE = Path("flight_booking_test.db")
+if DB_FILE.exists():
+    DB_FILE.unlink()
 
 os.environ["DATABASE_URL"] = "sqlite:///./flight_booking_test.db"
 os.environ["DISABLE_BACKGROUND_SIMULATOR"] = "1"
