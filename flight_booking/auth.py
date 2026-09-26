@@ -172,10 +172,13 @@ def update_profile(
     db: Session = Depends(lambda: SessionLocal()),
 ):
     try:
-        user.full_name = request.full_name.strip()
+        managed_user = db.get(UserModel, user.user_id)
+        if not managed_user:
+            raise HTTPException(status_code=404, detail="Account not found.")
+        managed_user.full_name = request.full_name.strip()
         db.commit()
-        db.refresh(user)
-        return user
+        db.refresh(managed_user)
+        return managed_user
     finally:
         db.close()
 
@@ -189,19 +192,22 @@ def change_password(
     db: Session = Depends(lambda: SessionLocal()),
 ):
     try:
-        if not verify_password(request.current_password, user.password_hash):
+        managed_user = db.get(UserModel, user.user_id)
+        if not managed_user:
+            raise HTTPException(status_code=404, detail="Account not found.")
+        if not verify_password(request.current_password, managed_user.password_hash):
             raise HTTPException(status_code=400, detail="Current password is incorrect.")
         if request.current_password == request.new_password:
             raise HTTPException(status_code=400, detail="New password must be different.")
 
-        user.password_hash = hash_password(request.new_password)
-        db.query(SessionModel).filter(SessionModel.user_id == user.user_id).delete(
+        managed_user.password_hash = hash_password(request.new_password)
+        db.query(SessionModel).filter(SessionModel.user_id == managed_user.user_id).delete(
             synchronize_session=False
         )
-        token = _create_session(db, user)
+        token = _create_session(db, managed_user)
         db.commit()
         _set_session_cookie(response, token)
-        return user
+        return managed_user
     finally:
         db.close()
 
@@ -213,10 +219,13 @@ def update_preferences(
     db: Session = Depends(lambda: SessionLocal()),
 ):
     try:
-        user.notifications_enabled = request.notifications_enabled
+        managed_user = db.get(UserModel, user.user_id)
+        if not managed_user:
+            raise HTTPException(status_code=404, detail="Account not found.")
+        managed_user.notifications_enabled = request.notifications_enabled
         db.commit()
-        db.refresh(user)
-        return user
+        db.refresh(managed_user)
+        return managed_user
     finally:
         db.close()
 
