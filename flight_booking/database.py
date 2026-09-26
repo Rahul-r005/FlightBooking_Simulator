@@ -48,6 +48,7 @@ class UserModel(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False, default="user", index=True)
     suspended = Column(Boolean, nullable=False, default=False, index=True)
+    notifications_enabled = Column(Boolean, nullable=False, default=True, server_default="1")
     created_at = Column(DateTime, server_default=func.now())
 
 
@@ -168,6 +169,14 @@ def _add_missing_columns() -> None:
                             'FOREIGN KEY (user_id) REFERENCES "Users" (user_id)'
                         )
                     )
+
+    if "Users" in table_names:
+        user_columns = {column["name"] for column in inspector.get_columns("Users")}
+        if "notifications_enabled" not in user_columns:
+            with engine.begin() as connection:
+                connection.execute(
+                    text('ALTER TABLE "Users" ADD COLUMN notifications_enabled BOOLEAN DEFAULT TRUE')
+                )
 
 
 def seed_initial_data() -> None:
