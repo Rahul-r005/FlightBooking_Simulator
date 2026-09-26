@@ -1,11 +1,12 @@
 
-from fastapi import FastAPI, HTTPException, Query, Depends, status
+from fastapi import Response, FastAPI, HTTPException, Query, Depends, status
 from pydantic import BaseModel, EmailStr, Field
 from typing import List, Optional
 from datetime import datetime, timedelta
 import random
 import threading
 import os
+import io
 import string
 
 # SQLAlchemy imports
@@ -251,12 +252,12 @@ def simulate_demand():
 # ----------------------------
 
 DB_USER = os.getenv("DB_USER", "root")
-DB_PASS = os.getenv("DB_PASS", "REviTDhoHGWHerRuFQmMkiLdXeakKgpF")
-DB_HOST = os.getenv("DB_HOST", "mysql-tfku.railway.internal")
+DB_PASS = os.getenv("DB_PASS", "")
+DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "3306")
-DB_NAME = os.getenv("DB_NAME", "railway") 
+DB_NAME = os.getenv("DB_NAME", "flight_booking") 
 
-DATABASE_URL = os.getenv("mysql://root:REviTDhoHGWHerRuFQmMkiLdXeakKgpF@mysql-tfku.railway.internal:3306/railway")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
     DATABASE_URL = (
@@ -601,7 +602,7 @@ def db_create_booking(req: DBBookingRequest, db: Session = Depends(get_db)):
             booking = BookingModel(
                 flight_id=flight.flight_id,
                 passenger_id=passenger.passenger_id,
-                seat_number=seat_number,
+                seat_number=req.seat_number,
                 status="Confirmed",
                 pnr=pnr,
                 price_per_seat=price_per_seat,
