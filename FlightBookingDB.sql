@@ -44,12 +44,11 @@ CREATE TABLE Bookings (
  flight_id INT NOT NULL,
  passenger_id INT NOT NULL,
  booking_date DATETIME DEFAULT CURRENT_TIMESTAMP,
- seat_number VARCHAR(5) NOT NULL,
+ seat_number VARCHAR(5) NULL,
  status VARCHAR(20) DEFAULT 'Confirmed',
  pnr VARCHAR(20) NOT NULL UNIQUE,
  price_per_seat DECIMAL(10,2) NOT NULL,
  total_price DECIMAL(12,2) NOT NULL,
- UNIQUE KEY uq_flight_seat (flight_id,seat_number),
  FOREIGN KEY (flight_id) REFERENCES Flights(flight_id),
  FOREIGN KEY (passenger_id) REFERENCES Passengers(passenger_id)
 );
