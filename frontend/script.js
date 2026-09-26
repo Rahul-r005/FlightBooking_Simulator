@@ -16,4 +16,18 @@ $("#closeModal").onclick=()=>$("#modal").classList.add("hidden");
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")$("#modal").classList.add("hidden")});
 $("#bookingForm").addEventListener("submit",async e=>{e.preventDefault();const out=$("#bookingStatus");out.textContent="Processing simulated payment…";const body={flight_id:Number($("#flightId").value),passenger_name:$("#passengerName").value,passenger_email:$("#passengerEmail").value||null,passenger_phone:$("#passengerPhone").value||null,seat_number:$("#seatNumber").value||null,force_payment_success:true};try{const r=await fetch(API+"/db/booking",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),data=await r.json();if(!r.ok)throw new Error(data.detail||"Booking failed");out.textContent="Booking confirmed. PNR: "+data.pnr;out.style.color="#087443";loadFlights();loadBookings()}catch(err){out.textContent=err.message;out.style.color="#b42318"}});
 async function loadBookings(){const box=$("#bookingList");box.innerHTML='<div class="status">Loading…</div>';try{const r=await fetch(API+"/db/bookings");if(!r.ok)throw new Error("Could not load bookings");const data=await r.json();box.innerHTML=data.length?data.map(b=>'<div class="booking-card"><div><b>PNR '+esc(b.pnr)+'</b><div class="muted">Flight #'+b.flight_id+' · Seat '+esc(b.seat_number||"—")+' · '+esc(new Date(b.booking_date).toLocaleString())+'</div></div><div><b>'+money(b.total_price)+'</b><div class="confirmed">'+esc(b.status)+'</div>'+(b.status==="Confirmed"?'<button class="ghost-btn cancel-btn" data-pnr="'+esc(b.pnr)+'">Cancel</button>':'')+'</div></div>').join(""):'<div class="status">No bookings yet.</div>'}catch(e){box.innerHTML='<div class="status">'+e.message+'</div>'}}
+$("#bookingList").addEventListener("click",async e=>{
+  const btn=e.target.closest(".cancel-btn");
+  if(!btn)return;
+  if(!confirm("Cancel booking "+btn.dataset.pnr+"?"))return;
+  try{
+    const r=await fetch(API+"/db/booking/"+encodeURIComponent(btn.dataset.pnr),{method:"DELETE"});
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(data.detail||"Cancellation failed");
+    await loadBookings();
+    await loadFlights();
+  }catch(err){
+    alert(err.message);
+  }
+});
 $("#loadBookings").onclick=loadBookings;loadFlights();
