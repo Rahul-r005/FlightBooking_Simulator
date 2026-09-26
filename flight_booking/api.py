@@ -148,6 +148,11 @@ def register_page():
     return FileResponse("frontend/register.html")
 
 
+@app.get("/settings")
+def settings_page(user: UserModel = Depends(get_current_user)):
+    return FileResponse("frontend/settings.html")
+
+
 @app.get("/admin")
 def admin_page(user: UserModel = Depends(get_current_user)):
     if user.role != "admin":
