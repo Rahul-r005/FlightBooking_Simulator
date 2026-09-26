@@ -9,6 +9,9 @@ from flight_booking.database import (
     FlightModel,
     PassengerModel,
     PaymentModel,
+    NotificationModel,
+    SessionModel,
+    UserModel,
     SessionLocal,
     engine,
 )
