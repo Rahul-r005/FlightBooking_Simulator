@@ -15,6 +15,7 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 SESSION_COOKIE = "__Host-SkyBookSession"
 SESSION_TTL_HOURS = int(os.getenv("SESSION_TTL_HOURS", "12"))
 password_hash = PasswordHash.recommended()
+DUMMY_PASSWORD_HASH = password_hash.hash("timing-protection-password")
 
 
 def _utc_now() -> datetime:
@@ -142,7 +143,7 @@ def login(request: LoginRequest, response: Response, db: Session = Depends(lambd
             .first()
         )
         if not user:
-            password_hash.hash("timing-protection-password")
+            password_hash.verify(request.password, DUMMY_PASSWORD_HASH)
             raise HTTPException(status_code=401, detail="Invalid email or password.")
         if not verify_password(request.password, user.password_hash):
             raise HTTPException(status_code=401, detail="Invalid email or password.")
