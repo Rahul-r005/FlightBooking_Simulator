@@ -5,6 +5,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from .auth import require_admin
+from .booking_service import cancel_booking
 from .database import BookingModel, FlightModel, PassengerModel, UserModel, SessionLocal
 from .notifications import booking_cancelled_message, create_notification
 from .schemas import (
@@ -211,7 +212,7 @@ def update_booking(
 
 
 @router.post("/bookings/{pnr}/cancel", response_model=AdminBookingCancellationResponse)
-def cancel_booking(
+def cancel_booking_as_admin(
     pnr: str,
     admin: UserModel = Depends(require_admin),
 ):
@@ -225,23 +226,8 @@ def cancel_booking(
         )
         if not booking:
             raise HTTPException(status_code=404, detail="Booking not found.")
-        if booking.status == "Cancelled":
-            raise HTTPException(status_code=400, detail="Booking is already cancelled.")
 
-        flight = db.get(FlightModel, booking.flight_id)
-        user = db.get(UserModel, booking.user_id) if booking.user_id else None
-        if not flight:
-            raise HTTPException(status_code=500, detail="Associated flight not found.")
-
-        flight.available_seats = min(flight.total_seats, flight.available_seats + 1)
-        booking.status = "Cancelled"
-        booking.seat_number = None
-
-        notification_created = False
-        if user:
-            create_notification(db, user, booking_cancelled_message(booking, flight), booking)
-            notification_created = True
-
+        notification_created = cancel_booking(db, booking, notify_user=True)
         db.commit()
         return AdminBookingCancellationResponse(
             message="Booking cancelled and the customer has been notified.",
