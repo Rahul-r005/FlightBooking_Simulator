@@ -30,20 +30,20 @@ function renderAccounts(accounts) {
     accountList.innerHTML = '<div class="status">No accounts found.</div>';
     return;
   }
-  accountList.innerHTML = accounts.map((account) => \`
+  accountList.innerHTML = accounts.map((account) => `
     <article class="admin-card">
       <div>
-        <strong>\${escapeHtml(account.full_name)}</strong>
-        <div class="muted">\${escapeHtml(account.email)} · \${account.booking_count} booking(s) · \${escapeHtml(account.role)}</div>
+        <strong>${escapeHtml(account.full_name)}</strong>
+        <div class="muted">${escapeHtml(account.email)} · ${account.booking_count} booking(s) · ${escapeHtml(account.role)}</div>
       </div>
       <div class="admin-actions">
-        <button class="ghost-btn account-bookings" data-user-id="\${account.user_id}">View bookings</button>
-        <button class="ghost-btn account-status" data-user-id="\${account.user_id}" data-suspended="\${account.suspended}">
-          \${account.suspended ? "Reactivate" : "Suspend"}
+        <button class="ghost-btn account-bookings" data-user-id="${account.user_id}">View bookings</button>
+        <button class="ghost-btn account-status" data-user-id="${account.user_id}" data-suspended="${account.suspended}">
+          ${account.suspended ? "Reactivate" : "Suspend"}
         </button>
       </div>
     </article>
-  \`).join("");
+  `).join("");
 }
 
 function renderBookings(bookings) {
@@ -51,26 +51,26 @@ function renderBookings(bookings) {
     bookingList.innerHTML = '<div class="status">No bookings match the filter.</div>';
     return;
   }
-  bookingList.innerHTML = bookings.map((booking) => \`
+  bookingList.innerHTML = bookings.map((booking) => `
     <article class="admin-card">
       <div>
-        <strong>\${escapeHtml(booking.pnr)}</strong>
+        <strong>${escapeHtml(booking.pnr)}</strong>
         <div class="muted">
-          \${escapeHtml(booking.flight_number)} · \${escapeHtml(booking.source)} → \${escapeHtml(booking.destination)}
-          · \${escapeHtml(new Date(booking.departure_time).toLocaleString())}
+          ${escapeHtml(booking.flight_number)} · ${escapeHtml(booking.source)} → ${escapeHtml(booking.destination)}
+          · ${escapeHtml(new Date(booking.departure_time).toLocaleString())}
         </div>
-        <div class="muted">\${escapeHtml(booking.passenger_name)} · \${escapeHtml(booking.passenger_email || "No email")} · Seat \${escapeHtml(booking.seat_number || "—")}</div>
+        <div class="muted">${escapeHtml(booking.passenger_name)} · ${escapeHtml(booking.passenger_email || "No email")} · Seat ${escapeHtml(booking.seat_number || "—")}</div>
       </div>
       <div class="admin-actions">
-        <span class="status-pill">\${escapeHtml(booking.status)}</span>
-        \${booking.status === "Confirmed" ? \`<button class="ghost-btn cancel-admin" data-pnr="\${escapeHtml(booking.pnr)}">Cancel booking</button>\` : ""}
+        <span class="status-pill">${escapeHtml(booking.status)}</span>
+        ${booking.status === "Confirmed" ? `<button class="ghost-btn cancel-admin" data-pnr="${escapeHtml(booking.pnr)}">Cancel booking</button>` : ""}
       </div>
     </article>
-  \`).join("");
+  `).join("");
 }
 
 async function loadAccounts(query = "") {
-  renderAccounts(await apiRequest(\`/admin/accounts?q=\${encodeURIComponent(query)}\`));
+  renderAccounts(await apiRequest(`/admin/accounts?q=${encodeURIComponent(query)}`));
 }
 
 async function loadBookings() {
@@ -79,7 +79,7 @@ async function loadBookings() {
   const query = new URLSearchParams();
   if (status) query.set("status", status);
   if (search) query.set("search", search);
-  renderBookings(await apiRequest(\`/admin/bookings?\${query}\`));
+  renderBookings(await apiRequest(`/admin/bookings?${query}`));
 }
 
 document.querySelector("#accountSearch").addEventListener("submit", async (event) => {
@@ -106,7 +106,7 @@ accountList.addEventListener("click", async (event) => {
   try {
     if (statusButton) {
       const suspended = statusButton.dataset.suspended !== "true";
-      await apiRequest(\`/admin/accounts/\${statusButton.dataset.userId}/status\`, {
+      await apiRequest(`/admin/accounts/${statusButton.dataset.userId}/status`, {
         method: "PATCH",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({suspended}),
@@ -115,7 +115,7 @@ accountList.addEventListener("click", async (event) => {
       showStatus(suspended ? "Account suspended." : "Account reactivated.");
     }
     if (bookingsButton) {
-      const bookings = await apiRequest(\`/admin/accounts/\${bookingsButton.dataset.userId}/bookings\`);
+      const bookings = await apiRequest(`/admin/accounts/${bookingsButton.dataset.userId}/bookings`);
       renderBookings(bookings);
       showStatus("Showing this customer's booking history.");
     }
@@ -127,9 +127,9 @@ accountList.addEventListener("click", async (event) => {
 bookingList.addEventListener("click", async (event) => {
   const button = event.target.closest(".cancel-admin");
   if (!button) return;
-  if (!window.confirm(\`Cancel booking \${button.dataset.pnr}?\`)) return;
+  if (!window.confirm(`Cancel booking ${button.dataset.pnr}?`)) return;
   try {
-    const result = await apiRequest(\`/admin/bookings/\${encodeURIComponent(button.dataset.pnr)}/cancel\`, {
+    const result = await apiRequest(`/admin/bookings/${encodeURIComponent(button.dataset.pnr)}/cancel`, {
       method: "POST",
     });
     showStatus(result.message);
