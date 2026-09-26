@@ -1,3 +1,9 @@
+function applyStoredTheme() {
+  document.documentElement.dataset.theme = localStorage.getItem("skybook-theme") || "system";
+}
+
+applyStoredTheme();
+
 const configuredApi = localStorage.getItem("API_URL");
 const API = (configuredApi || window.location.origin || "http://127.0.0.1:8000").replace(/\/$/, "");
 
