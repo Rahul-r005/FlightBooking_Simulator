@@ -81,7 +81,7 @@ class DBBookingResponse(BaseModel):
     pnr: str
     flight_id: int
     passenger_id: int
-    user_id: int
+    user_id: Optional[int]
     seat_number: Optional[str]
     price_per_seat: float
     total_price: float
