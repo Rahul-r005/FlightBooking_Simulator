@@ -1,5 +1,7 @@
 
 from fastapi import Response, FastAPI, HTTPException, Query, Depends, status
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -811,3 +813,8 @@ def db_dynamic_price(flight_id: int, db: Session = Depends(get_db)):
         "total_seats": flight.total_seats
     }
 # End of file
+
+
+# Serve the existing frontend from the same Render web service.
+# API routes above take precedence over this catch-all static mount.
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
