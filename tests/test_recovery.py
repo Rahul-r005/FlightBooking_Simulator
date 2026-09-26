@@ -3,6 +3,18 @@ from fastapi.testclient import TestClient
 from FlightBooking_backend import app
 
 
+def sign_in(client: TestClient, email: str = "recovery@example.com") -> None:
+    response = client.post(
+        "/auth/register",
+        json={
+            "full_name": "Recovery User",
+            "email": email,
+            "password": "correct-horse-battery",
+        },
+    )
+    assert response.status_code == 201, response.text
+
+
 def test_health_and_seeded_flights():
     with TestClient(app) as client:
         assert client.get("/health").status_code == 200
@@ -13,6 +25,7 @@ def test_health_and_seeded_flights():
 
 def test_booking_cancellation_and_seat_reuse():
     with TestClient(app) as client:
+        sign_in(client)
         flights = client.get("/flights").json()
         flight_id = flights[0]["flight_id"]
         available_before = flights[0]["available_seats"]
@@ -39,6 +52,10 @@ def test_booking_cancellation_and_seat_reuse():
         after_cancel = client.get(f"/db/flights/{flight_id}").json()
         assert after_cancel["available_seats"] == available_before
 
+        notifications = client.get("/notifications")
+        assert notifications.status_code == 200
+        assert any(pnr in item["message"] for item in notifications.json())
+
         reused = client.post(
             "/db/booking",
             json={
@@ -55,6 +72,7 @@ def test_booking_cancellation_and_seat_reuse():
 
 def test_duplicate_seat_is_rejected():
     with TestClient(app) as client:
+        sign_in(client)
         flight_id = client.get("/flights").json()[0]["flight_id"]
 
         first = client.post(
