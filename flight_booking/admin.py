@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_
@@ -197,8 +198,25 @@ def update_booking(
             raise HTTPException(status_code=404, detail="Booking not found.")
         if request.seat_number is not None:
             seat = request.seat_number.strip().upper()
-            if not seat:
-                raise HTTPException(status_code=400, detail="Seat number cannot be empty.")
+            if not re.fullmatch(r"[0-9]+[A-E]", seat):
+                raise HTTPException(status_code=400, detail="Seat number must look like 12A.")
+            flight = db.get(FlightModel, booking.flight_id)
+            row_number = int(seat[:-1])
+            max_row = (flight.total_seats + 4) // 5
+            if row_number < 1 or row_number > max_row:
+                raise HTTPException(status_code=400, detail="Seat number is outside this flight's seat map.")
+            conflict = (
+                db.query(BookingModel)
+                .filter(
+                    BookingModel.flight_id == booking.flight_id,
+                    BookingModel.seat_number == seat,
+                    BookingModel.status != "Cancelled",
+                    BookingModel.booking_id != booking.booking_id,
+                )
+                .first()
+            )
+            if conflict:
+                raise HTTPException(status_code=409, detail="Seat is already booked.")
             booking.seat_number = seat
         db.commit()
         db.refresh(booking)
