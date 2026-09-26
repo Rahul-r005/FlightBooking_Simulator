@@ -2,7 +2,7 @@
 from fastapi import Response, FastAPI, HTTPException, Query, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from typing import List, Optional
 from datetime import datetime, timedelta
 import random
