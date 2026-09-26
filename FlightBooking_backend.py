@@ -275,10 +275,10 @@ def simulate_demand():
 # --- DB-backed booking workflow additions ---
 # ----------------------------
 
-DB_USER = os.getenv("DB_USER", "root")
+DB_USER = os.getenv("DB_USER", "postgres")
 DB_PASS = os.getenv("DB_PASS", "")
 DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "3306")
+DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME", "flight_booking") 
 
 DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("MYSQL_URL") or os.getenv("MYSQL_PUBLIC_URL")
