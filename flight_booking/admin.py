@@ -200,10 +200,6 @@ def update_booking(
             if not seat:
                 raise HTTPException(status_code=400, detail="Seat number cannot be empty.")
             booking.seat_number = seat
-        if request.status is not None:
-            if request.status not in {"Confirmed", "Cancelled"}:
-                raise HTTPException(status_code=400, detail="Status must be Confirmed or Cancelled.")
-            booking.status = request.status
         db.commit()
         db.refresh(booking)
         return _booking_response(booking)
