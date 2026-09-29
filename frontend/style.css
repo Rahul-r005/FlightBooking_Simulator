@@ -563,3 +563,5 @@ html[data-theme="dark"] .ghost-btn {
 .timeline-item small { color:var(--muted); display:block; margin-top:6px; }
 @media (max-width:850px){ .admin-grid{grid-template-columns:1fr 1fr;} }
 @media (max-width:560px){ .admin-grid{grid-template-columns:1fr;} }
+
+.account-actions { display:flex; flex-wrap:wrap; gap:8px; }
