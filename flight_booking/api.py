@@ -666,6 +666,56 @@ def db_cancel_booking(
         raise HTTPException(status_code=500, detail="Cancellation failed.") from exc
 
 
+@app.delete("/db/booking/{pnr}/delete")
+def db_delete_booking(
+    pnr: str,
+    db: Session = Depends(get_db),
+    user: UserModel = Depends(get_current_user),
+):
+    try:
+        with db.begin():
+            booking = (
+                db.query(BookingModel)
+                .with_for_update()
+                .filter(BookingModel.pnr == pnr)
+                .first()
+            )
+            if not booking:
+                raise HTTPException(status_code=404, detail="Booking not found")
+            if not _booking_belongs_to_user(booking, user):
+                raise HTTPException(status_code=403, detail="You do not have access to this booking.")
+
+            flight = db.get(FlightModel, booking.flight_id)
+            if booking.status != "Cancelled" and flight:
+                flight.available_seats = min(flight.total_seats, flight.available_seats + 1)
+
+            booking_id = booking.booking_id
+            passenger_id = booking.passenger_id
+            db.query(PaymentModel).filter(PaymentModel.booking_id == booking_id).delete(synchronize_session=False)
+            db.query(NotificationModel).filter(NotificationModel.booking_id == booking_id).delete(synchronize_session=False)
+            db.query(AdminTimelineModel).filter(AdminTimelineModel.booking_id == booking_id).update(
+                {AdminTimelineModel.booking_id: None},
+                synchronize_session=False,
+            )
+            db.delete(booking)
+            db.flush()
+
+            if passenger_id is not None:
+                still_used = db.query(BookingModel.booking_id).filter(
+                    BookingModel.passenger_id == passenger_id
+                ).first()
+                if not still_used:
+                    db.query(PassengerModel).filter(
+                        PassengerModel.passenger_id == passenger_id
+                    ).delete(synchronize_session=False)
+
+        return {"message": "Booking and its stored booking details were permanently deleted.", "pnr": pnr}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Booking deletion failed.") from exc
+
+
 @app.get("/db/booking/{pnr}", response_model=DBBookingResponse)
 def db_get_booking(
     pnr: str,
