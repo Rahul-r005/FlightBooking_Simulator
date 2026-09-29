@@ -126,6 +126,29 @@ def account_bookings(user_id: int, admin: UserModel = Depends(require_admin)):
         db.close()
 
 
+@router.patch("/accounts/{user_id}/role", response_model=AdminAccountResponse)
+def update_account_role(
+    user_id: int,
+    request: AdminRoleUpdate,
+    admin: UserModel = Depends(require_admin),
+):
+    db = SessionLocal()
+    try:
+        user = db.get(UserModel, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="Account not found.")
+        if user.user_id == admin.user_id and request.role != "admin":
+            raise HTTPException(status_code=400, detail="You cannot remove your own administrator role.")
+        if user.role == request.role:
+            return _account_response(db, user)
+        user.role = request.role
+        db.commit()
+        db.refresh(user)
+        return _account_response(db, user)
+    finally:
+        db.close()
+
+
 @router.patch("/accounts/{user_id}/status", response_model=UserResponse)
 def update_account_status(
     user_id: int,
