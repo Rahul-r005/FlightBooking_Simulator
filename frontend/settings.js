@@ -4,7 +4,7 @@ function applyTheme(theme) {
 }
 
 function loadStoredTheme() {
-  return localStorage.getItem("skybook-theme") || "system";
+  return localStorage.getItem("skybook-theme") === "dark" ? "dark" : "light";
 }
 
 async function apiRequest(path, options = {}) {
