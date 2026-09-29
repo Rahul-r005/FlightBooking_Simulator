@@ -18,8 +18,8 @@ class Flight(BaseModel):
     base_fare: float
     pricing_tier: str
     demand: int
-    economy_price: float
-    premium_price: float
+    economy_price: float = 0.0
+    premium_price: float = 0.0
 
 
 class FlightOut(BaseModel):
@@ -85,6 +85,8 @@ class DBFlightResponse(BaseModel):
     base_fare: float
     pricing_tier: str
     demand: int
+    economy_price: float
+    premium_price: float
 
 
 class DBBookingResponse(BaseModel):
