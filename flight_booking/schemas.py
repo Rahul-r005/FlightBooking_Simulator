@@ -225,9 +225,20 @@ class AdminBookingCreate(BaseModel):
 
 class AdminBookingUpdate(BaseModel):
     seat_number: Optional[str] = None
+    cabin_class: Optional[str] = None
     passenger_name: Optional[str] = None
     passenger_email: Optional[EmailStr] = None
     total_price: Optional[float] = None
+
+    @field_validator("cabin_class")
+    @classmethod
+    def validate_cabin_class(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        normalized = value.strip().capitalize()
+        if normalized not in {"Economy", "Premium"}:
+            raise ValueError("Cabin class must be Economy or Premium.")
+        return normalized
 
 
 class AdminFlightUpdate(BaseModel):
