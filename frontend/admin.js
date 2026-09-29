@@ -85,7 +85,9 @@ function renderBookings(bookings) {
       </div>
       <div class="admin-actions">
         <span class="status-pill">${escapeHtml(booking.status)}</span>
-        ${booking.status === "Confirmed" ? `<button class="ghost-btn cancel-admin" data-pnr="${escapeHtml(booking.pnr)}">Cancel booking</button>` : ""}
+        ${booking.status === "Confirmed" ? `<button class="ghost-btn edit-booking" data-pnr="${escapeHtml(booking.pnr)}" data-seat="${escapeHtml(booking.seat_number || "")}">Edit seat</button><button class="ghost-btn cancel-admin" data-pnr="${escapeHtml(booking.pnr)}">Cancel</button>` : ""}
+        <button class="ghost-btn timeline-booking" data-pnr="${escapeHtml(booking.pnr)}">Timeline</button>
+        <button class="ghost-btn delete-booking" data-pnr="${escapeHtml(booking.pnr)}">Delete</button>
       </div>
     </article>
   `).join("");
