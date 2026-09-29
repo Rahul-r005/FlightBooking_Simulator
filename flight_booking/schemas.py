@@ -144,10 +144,6 @@ class AdminAccountStatusUpdate(BaseModel):
     suspended: bool
 
 
-class AdminBookingUpdate(BaseModel):
-    seat_number: Optional[str] = None
-
-
 class AdminBookingResponse(DBBookingResponse):
     passenger_name: str
     passenger_email: Optional[EmailStr]
