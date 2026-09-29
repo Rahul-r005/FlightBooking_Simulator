@@ -118,7 +118,15 @@ function renderBookings(bookings) {
 }
 
 async function loadAccounts(query = "") {
-  renderAccounts(await apiRequest(`/admin/accounts?q=${encodeURIComponent(query)}`));
+  const accounts = await apiRequest(`/admin/accounts?q=${encodeURIComponent(query)}`);
+  renderAccounts(accounts);
+  const selector = document.querySelector("#newCustomerAccount");
+  if (selector) {
+    const customers = accounts.filter((account) => account.role !== "admin" && !account.suspended);
+    selector.innerHTML = '<option value="">Guest booking / no linked account</option>' + customers.map((account) =>
+      '<option value="' + escapeHtml(account.email) + '">' + escapeHtml(account.full_name) + " — " + escapeHtml(account.email) + "</option>"
+    ).join("");
+  }
 }
 
 async function loadFlights() {
@@ -134,6 +142,10 @@ async function loadBookings() {
   if (search) query.set("search", search);
   renderBookings(await apiRequest(`/admin/bookings?${query}`));
 }
+
+document.querySelector("#newCustomerAccount")?.addEventListener("change", (event) => {
+  document.querySelector("#newCustomerEmail").value = event.target.value || "";
+});
 
 document.querySelector("#accountSearch").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -275,12 +287,28 @@ bookingList.addEventListener("click", async (event) => {
     if (name === null) return;
     const email = window.prompt("Passenger email:", booking.passenger_email || "");
     if (email === null) return;
+    const cabin = window.prompt("Cabin class (Economy or Premium):", booking.cabin_class || "Economy");
+    if (cabin === null) return;
     const price = window.prompt("Total price:", booking.total_price);
     if (price === null) return;
-    await apiRequest("/admin/bookings/" + encodeURIComponent(editButton.dataset.pnr), {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({seat_number:seat,passenger_name:name,passenger_email:email || null,total_price:Number(price)})});
+    await apiRequest("/admin/bookings/" + encodeURIComponent(editButton.dataset.pnr), {
+      method:"PATCH",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({cabin_class:cabin,passenger_name:name,passenger_email:email || null,total_price:Number(price)})
+    });
     await loadBookings(); await loadFlights(); showStatus("Booking updated and seat inventory synchronized."); return;
   }
-  if (deleteButton) { if (!window.confirm("Delete this booking? Its seat will be returned to inventory.")) return; await apiRequest("/admin/bookings/" + encodeURIComponent(deleteButton.dataset.pnr), {method:"DELETE"}); await loadBookings(); await loadFlights(); showStatus("Booking deleted and inventory updated."); return; }
+  if (deleteButton) {
+    const pnr = deleteButton.dataset.pnr;
+    if (!window.confirm("WARNING: Permanently delete booking " + pnr + "? This removes the booking and related records from the database. This action cannot be undone.")) return;
+    const typed = window.prompt("Final confirmation: type DELETE to permanently remove booking " + pnr + ".");
+    if (typed !== "DELETE") { showStatus("Booking deletion cancelled."); return; }
+    await apiRequest("/admin/bookings/" + encodeURIComponent(pnr), {method:"DELETE"});
+    await loadBookings();
+    await loadFlights();
+    showStatus("Booking " + pnr + " was permanently deleted from the database.");
+    return;
+  }
   if (!button) return;
   if (!window.confirm(`Cancel booking ${button.dataset.pnr}?`)) return;
   try {
@@ -294,6 +322,68 @@ bookingList.addEventListener("click", async (event) => {
   }
 });
 
+
+function validateAdminUserForm() {
+  const password = document.querySelector("#newUserPassword");
+  const confirm = document.querySelector("#newUserConfirmPassword");
+  const rules = document.querySelector("#adminPasswordRules");
+  const submit = document.querySelector("#createUserSubmit");
+  if (!password || !confirm || !rules || !submit) return false;
+  const state = {
+    length: password.value.length >= 8,
+    letter: /[A-Za-z]/.test(password.value),
+    number: /\d/.test(password.value),
+    match: password.value.length > 0 && password.value === confirm.value,
+  };
+  rules.innerHTML = [[
+    "At least 8 characters", state.length],
+    ["At least 1 letter", state.letter],
+    ["At least 1 number", state.number],
+    ["Passwords match", state.match],
+  ].map(([label, ok]) => '<div class="' + (ok ? "password-rule ok" : "password-rule missing") + '"><span>' + (ok ? "✓" : "•") + "</span>" + label + "</div>").join("");
+  submit.disabled = !(state.length && state.letter && state.number && state.match && document.querySelector("#newUserName").checkValidity() && document.querySelector("#newUserEmail").checkValidity());
+  return !submit.disabled;
+}
+
+document.querySelectorAll(".password-toggle").forEach((button) => {
+  button.addEventListener("click", () => {
+    const target = document.querySelector("#" + button.dataset.target);
+    const showing = target.type === "text";
+    target.type = showing ? "password" : "text";
+    button.textContent = showing ? "👁" : "◉";
+    button.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+  });
+});
+
+["newUserName","newUserEmail","newUserPassword","newUserConfirmPassword"].forEach((id) => {
+  const element = document.querySelector("#" + id);
+  if (element) element.addEventListener("input", validateAdminUserForm);
+});
+validateAdminUserForm();
+
+document.querySelector("#createUserForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!validateAdminUserForm()) return;
+  try {
+    const created = await apiRequest("/admin/accounts", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        full_name:document.querySelector("#newUserName").value.trim(),
+        email:document.querySelector("#newUserEmail").value.trim(),
+        password:document.querySelector("#newUserPassword").value,
+        confirm_password:document.querySelector("#newUserConfirmPassword").value,
+        role:document.querySelector("#newUserRole").value
+      })
+    });
+    event.target.reset();
+    validateAdminUserForm();
+    await loadAccounts(document.querySelector("#accountQuery").value.trim());
+    showStatus("Created " + (created.role === "admin" ? "administrator" : "customer") + " account for " + created.email + ".");
+  } catch (error) {
+    showStatus(error.message, true);
+  }
+});
 
 async function openAdminSeatPicker(context) {
   adminSeatContext = context;
@@ -377,7 +467,7 @@ document.querySelector("#createBookingForm").addEventListener("submit", async (e
       passenger_name:document.querySelector("#newPassengerName").value.trim(),
       passenger_email:document.querySelector("#newPassengerEmail").value.trim() || null,
       passenger_phone:document.querySelector("#newPassengerPhone").value.trim() || null,
-      user_email:document.querySelector("#newCustomerEmail").value.trim() || null,
+      user_email:document.querySelector("#newCustomerAccount").value || null,
       seat_number:document.querySelector("#newSeat").value.trim()
     })});
     event.target.reset(); await loadBookings(); await loadFlights(); showStatus("Booking created and seat inventory updated.");
