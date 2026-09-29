@@ -227,6 +227,62 @@ def list_bookings(
 
 
 
+@router.delete("/bookings/cancelled")
+def clear_cancelled_bookings(admin: UserModel = Depends(require_admin)):
+    """
+    Permanently remove all cancelled booking records and their related details.
+    Cancellation already returns each seat to inventory, so no seat counts are
+    changed during this cleanup operation.
+    """
+    db = SessionLocal()
+    try:
+        cancelled = db.query(BookingModel).filter(BookingModel.status == "Cancelled").all()
+        if not cancelled:
+            return {"message": "No cancelled bookings found.", "deleted_count": 0}
+
+        booking_ids = [booking.booking_id for booking in cancelled]
+        passenger_ids = {
+            booking.passenger_id
+            for booking in cancelled
+            if booking.passenger_id is not None
+        }
+
+        db.query(PaymentModel).filter(
+            PaymentModel.booking_id.in_(booking_ids)
+        ).delete(synchronize_session=False)
+        db.query(NotificationModel).filter(
+            NotificationModel.booking_id.in_(booking_ids)
+        ).delete(synchronize_session=False)
+        db.query(AdminTimelineModel).filter(
+            AdminTimelineModel.booking_id.in_(booking_ids)
+        ).delete(synchronize_session=False)
+        db.query(BookingModel).filter(
+            BookingModel.booking_id.in_(booking_ids)
+        ).delete(synchronize_session=False)
+
+        # Passenger rows are booking details too. Remove only passengers that
+        # are no longer referenced by any remaining booking.
+        for passenger_id in passenger_ids:
+            still_used = db.query(BookingModel.booking_id).filter(
+                BookingModel.passenger_id == passenger_id
+            ).first()
+            if not still_used:
+                db.query(PassengerModel).filter(
+                    PassengerModel.passenger_id == passenger_id
+                ).delete(synchronize_session=False)
+
+        db.commit()
+        return {
+            "message": "Cancelled booking details were permanently removed.",
+            "deleted_count": len(booking_ids),
+        }
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
 @router.get("/flights", response_model=list[AdminFlightResponse])
 def admin_flights(admin: UserModel = Depends(require_admin)):
     db = SessionLocal()
