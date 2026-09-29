@@ -144,6 +144,19 @@ class PaymentModel(Base):
     payment_date = Column(DateTime, server_default=func.now())
 
 
+class AdminTimelineModel(Base):
+    __tablename__ = "AdminBookingTimeline"
+
+    timeline_id = Column(Integer, primary_key=True, autoincrement=True)
+    booking_id = Column(Integer, nullable=True, index=True)
+    pnr = Column(String(20), nullable=False, index=True)
+    action = Column(String(30), nullable=False)
+    details = Column(String(1000), nullable=False)
+    created_at = Column(DateTime, server_default=func.now(), nullable=False, index=True)
+    admin_user_id = Column(Integer, ForeignKey("Users.user_id"), nullable=True)
+    admin_user = relationship("UserModel")
+
+
 class FareHistoryModel(Base):
     __tablename__ = "FareHistory"
 
