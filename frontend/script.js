@@ -12,6 +12,8 @@ const statusMessage = document.querySelector("#status");
 const bookingList = document.querySelector("#bookingList");
 const authLink = document.querySelector("#authLink");
 let currentUser = null;
+let selectedCabinClass = "Economy";
+let currentSeatMap = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -61,35 +63,16 @@ function renderFlights(flights) {
     return;
   }
 
-  flightList.innerHTML = flights.map((flight) => `
-    <article class="flight-card">
-      <div>
-        <div class="airline">${escapeHtml(flight.airline)}</div>
-        <div class="flight-number">${escapeHtml(flight.flight_number)}</div>
-      </div>
-      <div>
-        <div class="route">
-          ${escapeHtml(flight.source)} <span>→</span> ${escapeHtml(flight.destination)}
-        </div>
-        <div class="flight-number">
-          ${escapeHtml(new Date(flight.departure_time).toLocaleString())}
-          · ${flight.duration_minutes} min · ${flight.available_seats} seats left
-        </div>
-      </div>
-      <div class="fare">
-        <strong>${formatMoney(flight.dynamic_price)}</strong>
-        <span class="tier">${escapeHtml(flight.pricing_tier)}</span>
-      </div>
-      <button
-        class="primary-btn book-btn"
-        data-flight-id="${flight.flight_id}"
-        data-flight-name="${escapeHtml(`${flight.airline} ${flight.flight_number}`)}"
-        data-price="${flight.dynamic_price}"
-      >
-        Book
-      </button>
-    </article>
-  `).join("");
+  flightList.innerHTML = flights.map((flight) => '<article class="flight-card">' +
+    '<div><div class="airline">' + escapeHtml(flight.airline) + '</div><div class="flight-number">' + escapeHtml(flight.flight_number) + '</div></div>' +
+    '<div><div class="route">' + escapeHtml(flight.source) + ' <span>→</span> ' + escapeHtml(flight.destination) + '</div>' +
+    '<div class="flight-number">' + escapeHtml(new Date(flight.departure_time).toLocaleString()) + ' · ' + flight.duration_minutes + ' min · ' + flight.available_seats + ' seats left</div></div>' +
+    '<div class="fare-options">' +
+      '<div class="cabin-result"><div><span class="tier">Economy</span><strong>' + formatMoney(flight.economy_price) + '</strong><small>Standard cabin</small></div>' +
+      '<button class="ghost-btn book-btn" data-flight-id="' + flight.flight_id + '" data-flight-name="' + escapeHtml(flight.airline + " " + flight.flight_number) + '" data-cabin="Economy">Book</button></div>' +
+      '<div class="cabin-result premium-result"><div><span class="tier">Premium</span><strong>' + formatMoney(flight.premium_price) + '</strong><small>Premium front zone</small></div>' +
+      '<button class="ghost-btn book-btn" data-flight-id="' + flight.flight_id + '" data-flight-name="' + escapeHtml(flight.airline + " " + flight.flight_number) + '" data-cabin="Premium">Book</button></div>' +
+    '</div></article>').join("");
 }
 
 async function loadFlights() {
@@ -103,20 +86,77 @@ async function loadFlights() {
   }
 }
 
-function redirectToSignIn(flightId, flightName, price) {
+function redirectToSignIn(flightId, flightName, cabinClass) {
   const returnUrl = new URL("/", window.location.origin);
   returnUrl.searchParams.set("flight", flightId);
   returnUrl.searchParams.set("flightName", flightName);
-  returnUrl.searchParams.set("price", price);
+  returnUrl.searchParams.set("cabin", cabinClass);
   window.location.href = `/login?return=${encodeURIComponent(returnUrl.pathname + returnUrl.search)}`;
 }
 
-function openBooking(flightId, flightName, price) {
+async function openBooking(flightId, flightName, cabinClass) {
   document.querySelector("#bookingForm").reset();
   document.querySelector("#flightId").value = flightId;
-  document.querySelector("#modalFlight").textContent = `${flightName} · ${formatMoney(price)} / seat`;
+  document.querySelector("#modalFlight").textContent = flightName;
   document.querySelector("#bookingStatus").textContent = "";
-  document.querySelector("#modal").classList.remove("hidden");
+  try {
+    const flight = (await getFlights()).find((item) => item.flight_id === flightId);
+    if (!flight) throw new Error("Flight details could not be loaded.");
+    document.querySelector("#modalEconomyPrice").textContent = formatMoney(flight.economy_price);
+    document.querySelector("#modalPremiumPrice").textContent = formatMoney(flight.premium_price);
+    selectedCabinClass = cabinClass || "Economy";
+    document.querySelector("#cabinClass").value = selectedCabinClass;
+    currentSeatMap = await apiRequest("/db/flights/" + flightId + "/seats");
+    document.querySelector("#modal").classList.remove("hidden");
+    selectCabin(selectedCabinClass);
+  } catch (error) {
+    showStatus(error.message, true);
+  }
+}
+
+function renderSeatMap(seatData) {
+  const map = document.querySelector("#seatMap");
+  const booked = new Set(seatData.booked_seats || []);
+  const selectedSeat = document.querySelector("#seatNumber").value;
+  const rows = Math.ceil(seatData.total_seats / 5);
+  const html = [];
+  for (let row = 1; row <= rows; row += 1) {
+    const cabin = row >= seatData.premium_start_row ? "Premium" : "Economy";
+    html.push('<div class="seat-row-label">' + row + '</div>');
+    ["A","B","C","D","E"].forEach((letter) => {
+      const seat = row + letter;
+      const isBooked = booked.has(seat);
+      const isActive = cabin === selectedCabinClass;
+      const isSelected = selectedSeat === seat;
+      const classes = "seat " + (isBooked ? "booked" : isSelected ? "selected" : "available") + (!isActive && !isBooked ? " cabin-disabled" : "");
+      const disabled = isBooked || !isActive;
+      html.push('<button type="button" class="' + classes + '" data-seat="' + seat + '"' + (disabled ? " disabled" : "") + '>' + letter + '</button>');
+    });
+  }
+  map.innerHTML = html.join("");
+  document.querySelector("#seatPickerHint").textContent = selectedCabinClass + " seats are selectable; booked seats are disabled.";
+  document.querySelector("#selectedSeatLabel").textContent = selectedSeat ? "Selected seat " + selectedSeat : "No seat selected";
+  map.querySelectorAll(".seat:not(.booked):not(.cabin-disabled)").forEach((button) => {
+    button.addEventListener("click", () => {
+      document.querySelector("#seatNumber").value = button.dataset.seat;
+      renderSeatMap(seatData);
+    });
+  });
+}
+
+function selectCabin(cabinClass) {
+  selectedCabinClass = cabinClass;
+  document.querySelector("#cabinClass").value = cabinClass;
+  const currentSeat = document.querySelector("#seatNumber").value;
+  if (currentSeat && currentSeatMap) {
+    const row = Number(currentSeat.slice(0, -1));
+    const currentSeatCabin = row >= currentSeatMap.premium_start_row ? "Premium" : "Economy";
+    if (currentSeatCabin !== cabinClass) document.querySelector("#seatNumber").value = "";
+  }
+  document.querySelectorAll(".cabin-choice").forEach((button) => {
+    button.classList.toggle("active", button.dataset.cabin === cabinClass);
+  });
+  if (currentSeatMap) renderSeatMap(currentSeatMap);
 }
 
 function closeBookingModal() {
@@ -126,25 +166,24 @@ function closeBookingModal() {
 async function submitBooking(event) {
   event.preventDefault();
   const bookingStatus = document.querySelector("#bookingStatus");
+  const selectedSeat = document.querySelector("#seatNumber").value;
+  if (!selectedSeat) { bookingStatus.textContent = "Please select an available seat."; bookingStatus.style.color = "#b42318"; return; }
   bookingStatus.textContent = "Processing simulated payment…";
-
-  const requestBody = {
-    flight_id: Number(document.querySelector("#flightId").value),
-    passenger_name: document.querySelector("#passengerName").value,
-    passenger_email: document.querySelector("#passengerEmail").value || null,
-    passenger_phone: document.querySelector("#passengerPhone").value || null,
-    seat_number: document.querySelector("#seatNumber").value || null,
-    force_payment_success: true,
-  };
-
   try {
     const booking = await apiRequest("/db/booking", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        flight_id: Number(document.querySelector("#flightId").value),
+        cabin_class: selectedCabinClass,
+        passenger_name: document.querySelector("#passengerName").value,
+        passenger_email: document.querySelector("#passengerEmail").value || null,
+        passenger_phone: document.querySelector("#passengerPhone").value || null,
+        seat_number: selectedSeat,
+        force_payment_success: true,
+      }),
     });
-
-    bookingStatus.textContent = `Booking confirmed. PNR: ${booking.pnr}`;
+    bookingStatus.textContent = "Booking confirmed. PNR: " + booking.pnr;
     bookingStatus.style.color = "#087443";
     await loadFlights();
     await loadBookings();
@@ -171,7 +210,7 @@ async function loadBookings() {
     bookingList.innerHTML = bookings.map((booking) => `
       <div class="booking-card">
         <div>
-          <b>PNR ${escapeHtml(booking.pnr)}</b>
+          <b>PNR ${escapeHtml(booking.pnr)} · ${escapeHtml(booking.cabin_class || "Economy")}</b>
           <div class="muted">
             Flight #${booking.flight_id} · Seat ${escapeHtml(booking.seat_number || "—")}
             · ${escapeHtml(new Date(booking.booking_date).toLocaleString())}
@@ -237,26 +276,16 @@ document.querySelector("#refreshBtn").addEventListener("click", loadFlights);
 
 document.querySelector("#flightList").addEventListener("click", (event) => {
   const button = event.target.closest(".book-btn");
-  if (!button) {
-    return;
-  }
-
+  if (!button) return;
   if (!currentUser) {
-    redirectToSignIn(
-      Number(button.dataset.flightId),
-      button.dataset.flightName,
-      Number(button.dataset.price),
-    );
+    redirectToSignIn(Number(button.dataset.flightId), button.dataset.flightName, button.dataset.cabin || "Economy");
     return;
   }
-
-  openBooking(
-    Number(button.dataset.flightId),
-    button.dataset.flightName,
-    Number(button.dataset.price),
-  );
+  openBooking(Number(button.dataset.flightId), button.dataset.flightName, button.dataset.cabin || "Economy");
 });
 
+document.querySelector("#modalEconomyChoice").addEventListener("click", () => selectCabin("Economy"));
+document.querySelector("#modalPremiumChoice").addEventListener("click", () => selectCabin("Premium"));
 document.querySelector("#closeModal").addEventListener("click", closeBookingModal);
 document.querySelector("#modal").addEventListener("click", (event) => {
   if (event.target.id === "modal") {
