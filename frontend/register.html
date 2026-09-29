@@ -10,6 +10,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script src="/theme.js"></script>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body class="auth-page">
@@ -17,12 +18,14 @@
     <a class="brand auth-brand" href="/"><img src="/logo.svg" alt="SkyBook"></a>
     <p class="eyebrow">GET STARTED</p>
     <h1>Create your SkyBook account</h1>
-    <p class="muted">Sign in is required before a flight booking can be created.</p>
+    <p class="muted">Use at least 8 characters with a letter and a number. Symbols are allowed.</p>
     <form id="registerForm" class="auth-form">
       <label>Full name<input id="fullName" autocomplete="name" required minlength="2"></label>
       <label>Email<input id="email" type="email" autocomplete="email" required></label>
-      <label>Password<input id="password" type="password" autocomplete="new-password" minlength="8" required></label>
-      <button class="primary-btn" type="submit">Create account</button>
+      <label>Password<div class="password-field"><input id="password" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="password-toggle" data-target="password" aria-label="Show password" title="Show password">◉</button></div></label>
+      <div id="passwordRules" class="password-rules" aria-live="polite"></div>
+      <label>Confirm password<div class="password-field"><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required><button type="button" class="password-toggle" data-target="confirmPassword" aria-label="Show password" title="Show password">◉</button></div></label>
+      <button class="primary-btn" type="submit" disabled>Create account</button>
     </form>
     <div id="authStatus" class="status"></div>
     <p class="auth-switch">Already registered? <a href="/login">Sign in</a></p>

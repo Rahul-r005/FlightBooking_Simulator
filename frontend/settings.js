@@ -1,10 +1,10 @@
 function applyTheme(theme) {
-  const root = document.documentElement;
-  root.dataset.theme = theme;
+  document.documentElement.dataset.theme = theme;
 }
 
 function loadStoredTheme() {
-  return localStorage.getItem("skybook-theme") === "dark" ? "dark" : "light";
+  const saved = localStorage.getItem("skybook-theme");
+  return saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
 }
 
 async function apiRequest(path, options = {}) {
@@ -76,6 +76,16 @@ document.querySelector("#notificationsEnabled").addEventListener("change", async
     event.target.checked = !event.target.checked;
     showStatus(status, error.message, true);
   }
+});
+
+document.querySelectorAll(".password-toggle").forEach((button) => {
+  const target = document.querySelector("#" + button.dataset.target);
+  button.addEventListener("click", () => {
+    const showing = target.type === "text";
+    target.type = showing ? "password" : "text";
+    button.textContent = showing ? "◉" : "◌";
+    button.setAttribute("aria-label", showing ? "Show password" : "Hide password");
+  });
 });
 
 document.querySelector("#passwordForm").addEventListener("submit", async (event) => {

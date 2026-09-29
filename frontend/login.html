@@ -10,6 +10,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <script src="/theme.js"></script>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body class="auth-page">
@@ -20,7 +21,7 @@
     <p class="muted">Your booking history and account details stay protected behind your sign-in.</p>
     <form id="loginForm" class="auth-form">
       <label>Email<input id="email" type="email" autocomplete="email" required></label>
-      <label>Password<input id="password" type="password" autocomplete="current-password" minlength="8" required></label>
+      <label>Password<div class="password-field"><input id="password" type="password" autocomplete="current-password" minlength="8" required><button type="button" class="password-toggle" data-target="password" aria-label="Show password" title="Show password">◉</button></div></label>
       <button class="primary-btn" type="submit">Sign in</button>
     </form>
     <div id="authStatus" class="status"></div>
