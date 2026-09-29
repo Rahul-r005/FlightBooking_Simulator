@@ -635,8 +635,17 @@ def update_booking(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail="Cabin class must be Economy or Premium") from exc
 
-        if request.cabin_class is not None and requested_cabin != (booking.cabin_class or "Economy"):
-            changes.append(f"Cabin changed from {booking.cabin_class or 'Economy'} to {requested_cabin}.")
+        current_cabin = booking.cabin_class or "Economy"
+        if request.cabin_class is not None and requested_cabin != current_cabin:
+            if request.seat_number is None and booking.seat_number:
+                flight = db.get(FlightModel, booking.flight_id)
+                current_row = int(booking.seat_number[:-1])
+                if cabin_for_row(flight.total_seats, current_row) != requested_cabin:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Choose a seat in the new cabin before changing the cabin class.",
+                    )
+            changes.append(f"Cabin changed from {current_cabin} to {requested_cabin}.")
             booking.cabin_class = requested_cabin
 
         if booking.cabin_class not in {"Economy", "Premium"}:
