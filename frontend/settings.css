@@ -226,3 +226,30 @@ html[data-theme="dark"] .settings-menu a:hover,
 html[data-theme="dark"] .settings-menu a:focus {
   background: #24324a;
 }
+
+
+/* Settings inherits the same theme contract as every other page. */
+html[data-theme="light"] .settings-card {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+html[data-theme="dark"] .settings-card {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+html[data-theme="system"] .settings-card {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.settings-menu a { color: var(--muted); }
+.settings-menu a:hover, .settings-menu a:focus {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+.settings-badge {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent);
+}
