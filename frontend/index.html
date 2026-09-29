@@ -5,22 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#3157d5">
   <meta name="description" content="SkyBook flight search and booking with dynamic fares.">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <title>SkyBook — Flight Booking Simulator</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <script src="./theme.js"></script>
-  <link rel="stylesheet" href="./style.css?v=20260929-theme>
+  <script src="/theme.js"></script>
+  <link rel="stylesheet" href="/style.css?v=20260929-theme">
 </head>
 <body>
   <header class="navbar">
-    <div class="brand">
+    <a class="brand" href="/">
       <span class="brand-mark">✈</span>
       <span>SkyBook</span>
-    </div>
+    </a>
     <nav>
       <a href="#search">Search</a>
       <a href="#bookings">Bookings</a>
@@ -36,7 +35,7 @@
         <p class="eyebrow">FLIGHT BOOKING SIMULATOR</p>
         <h1>Book smarter with <span>dynamic pricing.</span></h1>
         <p class="hero-copy">
-          Search flights, watch fares adapt to demand and availability, and complete a simulated booking in seconds.
+          Search flights, compare cabin fares, choose your seat, and complete a simulated booking in seconds.
         </p>
         <a class="hero-link" href="#search">Find a flight ↓</a>
       </div>
@@ -61,7 +60,7 @@
           <p class="eyebrow">SEARCH FLIGHTS</p>
           <h2>Where are you flying?</h2>
         </div>
-        <button id="refreshBtn" class="ghost-btn">↻ Refresh fares</button>
+        <button id="refreshBtn" class="ghost-btn" type="button">↻ Refresh fares</button>
       </div>
 
       <form id="searchForm" class="search-form">
@@ -70,69 +69,25 @@
         <label>Date<input id="date" type="date"></label>
         <button type="submit" class="primary-btn">Search flights</button>
       </form>
-      <div id="status" class="status"></div>
+      <div id="status" class="status" role="status"></div>
     </section>
-
-    <section id="bookings" class="booking-history">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">BOOKING HISTORY</p>
-          <h2>Your recent bookings</h2><a class="booking-jump" href="#bookings">Bookings</a>
-        </div>
-        <button id="loadBookings" class="ghost-btn">Load bookings</button>
-      </div>
-      <div id="bookingList" class="booking-list"></div>
-    </section>
-  </main>
-
-  
 
     <section id="bookings" class="booking-history">
       <div class="section-heading">
         <div>
           <p class="eyebrow">BOOKING HISTORY</p>
           <h2>Your recent bookings</h2>
+          <a class="booking-jump" href="#bookings">Open bookings</a>
         </div>
-        <button id="loadBookings" class="ghost-btn">Load bookings</button>
+        <button id="loadBookings" class="ghost-btn" type="button">Load bookings</button>
       </div>
       <div id="bookingList" class="booking-list"></div>
     </section>
-  </main>
-
-  
-
-    <section id="bookings" class="booking-history">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">BOOKING HISTORY</p>
-          <h2>Your recent bookings</h2>
-        </div>
-        <button id="loadBookings" class="ghost-btn">Load bookings</button>
-      </div>
-      <div id="bookingList" class="booking-list"></div>
-    </section>
-  </main>
-
-  
-
-    <section id="bookings" class="booking-history">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">BOOKING HISTORY</p>
-          <h2>Your recent bookings</h2>
-        </div>
-        <button id="loadBookings" class="ghost-btn">Load bookings</button>
-      </div>
-      <div id="bookingList" class="booking-list"></div>
-    </section>
-  </main>
-
-  
 
     <section class="results">
       <div class="results-top">
         <h2>Available flights</h2>
-        <select id="sort">
+        <select id="sort" aria-label="Sort flights">
           <option value="">Sort by</option>
           <option value="price">Price: low to high</option>
           <option value="duration">Duration: short to long</option>
@@ -140,14 +95,11 @@
       </div>
       <div id="flightList" class="flight-list"></div>
     </section>
+  </main>
 
-    
-
-    
-
-    <div id="modal" class="modal hidden">
+  <div id="modal" class="modal hidden">
     <div class="modal-card">
-      <button id="closeModal" class="modal-close" aria-label="Close booking form">×</button>
+      <button id="closeModal" class="modal-close" type="button" aria-label="Close booking form">×</button>
       <p class="eyebrow">CONFIRM BOOKING</p>
       <h2 id="modalFlight"></h2>
 
@@ -156,17 +108,26 @@
         <label>Passenger name<input id="passengerName" required minlength="2"></label>
         <label>Email<input id="passengerEmail" type="email"></label>
         <label>Phone<input id="passengerPhone"></label>
+
         <div class="cabin-picker" role="group" aria-label="Cabin class">
           <button type="button" class="cabin-choice active" data-cabin="Economy" id="modalEconomyChoice">
-            <span>Economy</span><strong id="modalEconomyPrice">₹0</strong><small>Standard cabin</small>
+            <span>Economy</span>
+            <strong id="modalEconomyPrice">₹0</strong>
+            <small>Standard cabin</small>
           </button>
           <button type="button" class="cabin-choice" data-cabin="Premium" id="modalPremiumChoice">
-            <span>Premium</span><strong id="modalPremiumPrice">₹0</strong><small>Premium front zone</small>
+            <span>Premium</span>
+            <strong id="modalPremiumPrice">₹0</strong>
+            <small>Premium front zone</small>
           </button>
         </div>
+
         <div class="seat-picker-panel">
           <div class="seat-picker-heading">
-            <div><b>Select your seat</b><span id="seatPickerHint">Choose an available seat</span></div>
+            <div>
+              <b>Select your seat</b>
+              <span id="seatPickerHint">Choose an available seat</span>
+            </div>
             <span id="selectedSeatLabel" class="selected-seat-label">No seat selected</span>
           </div>
           <div class="seat-legend">
@@ -177,14 +138,15 @@
           <div id="seatMap" class="seat-map" aria-label="Seat selection"></div>
           <input type="hidden" id="seatNumber" required>
         </div>
+
         <input type="hidden" id="cabinClass" value="Economy">
-        <button class="primary-btn" type="submit">Confirm & Pay</button>
+        <button class="primary-btn" type="submit">Confirm &amp; Pay</button>
       </form>
-      <div id="bookingStatus" class="status"></div>
+      <div id="bookingStatus" class="status" role="status"></div>
     </div>
   </div>
 
   <footer>SkyBook • Flight Booking Simulator with Dynamic Pricing</footer>
-  <script src="./script.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>
