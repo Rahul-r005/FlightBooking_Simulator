@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <script src="/theme.js"></script>
-  <link rel="stylesheet" href="/style.css?v=20260929-final">
+  <link rel="stylesheet" href="/style.css?v=20260929-product">
 </head>
 <body class="admin-page">
   <header class="navbar">
@@ -34,6 +34,22 @@
           <input id="accountQuery" placeholder="Search name or email">
           <button class="ghost-btn" type="submit">Search</button>
         </form>
+      </div>
+      <div class="admin-create-user">
+        <div class="admin-create-heading">
+          <div><p class="eyebrow">CREATE ACCOUNT</p><h3>Add a new user</h3></div>
+          <span class="muted">Create a customer or administrator directly from this page.</span>
+        </div>
+        <form id="createUserForm" class="admin-grid">
+          <input id="newUserName" placeholder="Full name" required minlength="2" maxlength="100">
+          <input id="newUserEmail" type="email" placeholder="Email address" required>
+          <select id="newUserRole"><option value="user">Customer</option><option value="admin">Administrator</option></select>
+          <div class="password-field"><input id="newUserPassword" type="password" placeholder="Password" required minlength="8"><button type="button" class="password-toggle" data-target="newUserPassword" aria-label="Show password" title="Show password">👁</button></div>
+          <div class="password-field"><input id="newUserConfirmPassword" type="password" placeholder="Confirm password" required minlength="8"><button type="button" class="password-toggle" data-target="newUserConfirmPassword" aria-label="Show password" title="Show password">👁</button></div>
+          <div id="adminPasswordRules" class="password-rules"></div>
+          <button id="createUserSubmit" class="primary-btn" type="submit" disabled>Create user</button>
+        </form>
+        <div id="createUserStatus" class="status"></div>
       </div>
       <div class="account-group">
         <div class="account-group-heading"><div><p class="eyebrow">CUSTOMERS</p><h3>Customer accounts</h3></div></div>
@@ -69,7 +85,8 @@
         <input id="newPassengerName" placeholder="Passenger name" required>
         <input id="newPassengerEmail" type="email" placeholder="Passenger email">
         <input id="newPassengerPhone" placeholder="Phone">
-        <input id="newCustomerEmail" type="email" placeholder="Existing customer email (optional)">
+        <select id="newCustomerAccount"><option value="">Guest booking / no linked account</option></select>
+        <input id="newCustomerEmail" type="email" placeholder="Selected customer email" readonly>
         <select id="newBookingCabinClass"><option value="Economy">Economy</option><option value="Premium">Premium</option></select>
         <div class="seat-input-row"><input id="newSeat" placeholder="Choose a seat" readonly required><button class="ghost-btn" type="button" id="chooseNewSeat">Choose seat</button></div>
         <button class="primary-btn" type="submit">Create booking</button>
