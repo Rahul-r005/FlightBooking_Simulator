@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Optional
+import re
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 class Flight(BaseModel):
@@ -100,10 +101,31 @@ class DBBookingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+def validate_strong_password(value: str) -> str:
+    if len(value) < 8:
+        raise ValueError("Password must be at least 8 characters.")
+    if not re.search(r"[A-Za-z]", value):
+        raise ValueError("Password must contain at least one letter.")
+    if not re.search(r"\d", value):
+        raise ValueError("Password must contain at least one number.")
+    return value
+
 class RegisterRequest(BaseModel):
     full_name: str = Field(..., min_length=2, max_length=100)
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
+    confirm_password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        return validate_strong_password(value)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match.")
+        return self
 
 
 class LoginRequest(BaseModel):
@@ -118,6 +140,11 @@ class ProfileUpdateRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(..., min_length=8, max_length=128)
     new_password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        return validate_strong_password(value)
 
 
 class PreferencesUpdateRequest(BaseModel):
@@ -148,6 +175,23 @@ class NotificationResponse(BaseModel):
 class AdminAccountResponse(UserResponse):
     booking_count: int
 
+class AdminUserCreate(BaseModel):
+    full_name: str = Field(..., min_length=2, max_length=100)
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+    confirm_password: str = Field(..., min_length=8, max_length=128)
+    role: str = Field(default="user", pattern="^(user|admin)$")
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        return validate_strong_password(value)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.password != self.confirm_password:
+            raise ValueError("Passwords do not match.")
+        return self
 
 class AdminAccountStatusUpdate(BaseModel):
     suspended: bool

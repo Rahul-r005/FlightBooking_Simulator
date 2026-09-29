@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from .auth import require_admin
+from .auth import hash_password, require_admin
 from .booking_service import cancel_booking
 from .pricing import calculate_cabin_fare, generate_pnr, normalize_cabin_class
 from .seat_map import cabin_for_row, premium_start_row
@@ -34,6 +34,7 @@ from .schemas import (
     AdminFlightUpdate,
     AdminTimelineResponse,
     AdminRoleUpdate,
+    AdminUserCreate,
     UserResponse,
 )
 
@@ -77,6 +78,34 @@ def _booking_response(booking: BookingModel) -> AdminBookingResponse:
     )
 
 
+@router.post("/accounts", response_model=AdminAccountResponse, status_code=201)
+def create_account(request: AdminUserCreate, admin: UserModel = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        email = request.email.lower().strip()
+        if db.query(UserModel).filter(UserModel.email == email).first():
+            raise HTTPException(status_code=409, detail="An account with that email already exists.")
+
+        user = UserModel(
+            email=email,
+            full_name=request.full_name.strip(),
+            password_hash=hash_password(request.password),
+            role=request.role,
+            suspended=False,
+        )
+        db.add(user)
+        db.flush()
+        db.commit()
+        db.refresh(user)
+        return _account_response(db, user)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unable to create the account.") from exc
+    finally:
+        db.close()
 @router.get("/accounts", response_model=list[AdminAccountResponse])
 def list_accounts(
     q: str | None = Query(None),

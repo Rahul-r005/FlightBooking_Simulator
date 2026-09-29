@@ -112,8 +112,8 @@ def test_user_settings_profile_preferences_password_and_logout():
         password = client.patch(
             "/auth/password",
             json={
-                "current_password": "correct-horse-battery",
-                "new_password": "new-correct-horse",
+                "current_password": "CorrectHorse7Battery",
+                "new_password": "NewCorrect7Horse",
             },
         )
         assert password.status_code == 200, password.text
@@ -129,7 +129,7 @@ def test_user_settings_profile_preferences_password_and_logout():
             "/auth/login",
             json={
                 "email": "settings@example.com",
-                "password": "new-correct-horse",
+                "password": "NewCorrect7Horse",
             },
         )
         assert login.status_code == 200, login.text

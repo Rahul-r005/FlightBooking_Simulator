@@ -239,7 +239,7 @@ def seed_initial_data() -> None:
                     departure_time=now + timedelta(hours=6),
                     arrival_time=now + timedelta(hours=8),
                     total_seats=180,
-                    available_seats=150,
+                    available_seats=180,
                     base_fare=4000,
                     pricing_tier="standard",
                     simulated_demand=60,
@@ -252,7 +252,7 @@ def seed_initial_data() -> None:
                     departure_time=now + timedelta(hours=12),
                     arrival_time=now + timedelta(hours=15),
                     total_seats=220,
-                    available_seats=200,
+                    available_seats=220,
                     base_fare=4500,
                     pricing_tier="economy",
                     simulated_demand=30,
@@ -265,7 +265,7 @@ def seed_initial_data() -> None:
                     departure_time=now + timedelta(hours=18),
                     arrival_time=now + timedelta(hours=21),
                     total_seats=150,
-                    available_seats=100,
+                    available_seats=150,
                     base_fare=3800,
                     pricing_tier="premium",
                     simulated_demand=80,
@@ -280,7 +280,25 @@ def seed_initial_data() -> None:
         db.close()
 
 
+def reconcile_seat_inventory() -> None:
+    """Make available seats equal total seats minus active bookings."""
+    db = SessionLocal()
+    try:
+        for flight in db.query(FlightModel).all():
+            active_bookings = db.query(BookingModel).filter(
+                BookingModel.flight_id == flight.flight_id,
+                BookingModel.status != "Cancelled",
+            ).count()
+            flight.available_seats = max(0, flight.total_seats - active_bookings)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
 def initialize_database() -> None:
     Base.metadata.create_all(bind=engine)
     _add_missing_columns()
     seed_initial_data()
+    reconcile_seat_inventory()
