@@ -12,6 +12,7 @@ Security:
 - The operation is transactional and does not create a user.
 """
 
+import hashlib
 import os
 import secrets
 from datetime import datetime, timezone
@@ -24,6 +25,7 @@ from flight_booking.database import Base, SessionLocal, UserModel, engine
 
 TARGET_EMAIL = "rahulramachandran3110@gmail.com"
 PROMOTION_KEY = "initial_admin_promotion_v1"
+PROMOTION_TOKEN_SHA256 = "e796cca24cf6f061dcb552df2599672605dfc606fbaff38750014563adefd670"
 
 
 class AdminPromotionAudit(Base):
@@ -48,9 +50,11 @@ def main() -> int:
         print("Set ADMIN_PROMOTION_CONFIRM=PROMOTE_INITIAL_ADMIN before running.")
         return 2
 
-    # The token proves that the person intentionally configured this one-time
-    # operation. It is not printed or persisted.
-    if not secrets.compare_digest(token, os.getenv("ADMIN_PROMOTION_TOKEN", "")):
+    # Verify the token against a digest so the plaintext secret is never
+    # stored in the repository or database.
+    supplied_digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    if not secrets.compare_digest(supplied_digest, PROMOTION_TOKEN_SHA256):
+        print("Invalid ADMIN_PROMOTION_TOKEN.")
         return 2
 
     db = SessionLocal()
