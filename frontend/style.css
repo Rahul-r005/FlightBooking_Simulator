@@ -183,7 +183,13 @@ input, select {
   border-radius: 10px;
   padding: 12px 13px;
   background: #fff;
+  color: #101828;
   outline: none;
+}
+
+input::placeholder {
+  color: #667085;
+  opacity: 1;
 }
 
 input:focus, select:focus {
@@ -513,5 +519,17 @@ html[data-theme="dark"] .ghost-btn {
 
   html[data-theme="system"] .hero {
     background: linear-gradient(135deg, #151f31, #1c2940);
+  }
+
+  html[data-theme="system"] input,
+  html[data-theme="system"] select {
+    background: #101828;
+    color: #f2f4f7;
+    border-color: #475467;
+  }
+
+  html[data-theme="system"] input::placeholder {
+    color: #98a2b3;
+    opacity: 1;
   }
 }
