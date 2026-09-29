@@ -91,6 +91,18 @@ document.querySelector("#accountSearch").addEventListener("submit", async (event
   }
 });
 
+document.querySelector("#clearCancelledBookings").addEventListener("click", async () => {
+  const statusSelect = document.querySelector("#bookingStatus");
+  statusSelect.value = "upcoming";
+  document.querySelector("#bookingSearch").value = "";
+  try {
+    await loadBookings();
+    showStatus("Cancelled bookings cleared from the admin view. They remain in the database for history.");
+  } catch (error) {
+    showStatus(error.message, true);
+  }
+});
+
 document.querySelector("#bookingFilter").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
