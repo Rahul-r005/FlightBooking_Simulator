@@ -7,7 +7,8 @@ from sqlalchemy.orm import Session
 
 from .auth import require_admin
 from .booking_service import cancel_booking
-from .pricing import generate_pnr
+from .pricing import calculate_cabin_fare, generate_pnr, normalize_cabin_class
+from .seat_map import cabin_for_row, premium_start_row
 from .database import (
     AdminTimelineModel,
     AirlineModel,
@@ -62,6 +63,7 @@ def _booking_response(booking: BookingModel) -> AdminBookingResponse:
         passenger_id=booking.passenger_id,
         user_id=booking.user_id,
         seat_number=booking.seat_number,
+        cabin_class=booking.cabin_class or "Economy",
         price_per_seat=float(booking.price_per_seat or 0),
         total_price=float(booking.total_price or 0),
         status=booking.status,
@@ -193,6 +195,28 @@ def delete_account(user_id: int, admin: UserModel = Depends(require_admin)):
     except Exception:
         db.rollback()
         raise
+    finally:
+        db.close()
+
+
+@router.get("/flights/{flight_id}/seats")
+def admin_flight_seats(flight_id: int, admin: UserModel = Depends(require_admin)):
+    db = SessionLocal()
+    try:
+        flight = db.get(FlightModel, flight_id)
+        if not flight:
+            raise HTTPException(status_code=404, detail="Flight not found.")
+        booked = db.query(BookingModel.seat_number).filter(
+            BookingModel.flight_id == flight_id,
+            BookingModel.status != "Cancelled",
+            BookingModel.seat_number.isnot(None),
+        ).all()
+        return {
+            "flight_id": flight_id,
+            "total_seats": flight.total_seats,
+            "premium_start_row": premium_start_row(flight.total_seats),
+            "booked_seats": [row[0] for row in booked],
+        }
     finally:
         db.close()
 
@@ -482,12 +506,21 @@ def create_admin_booking(
             raise HTTPException(status_code=404, detail="Flight not found.")
         if flight.available_seats <= 0:
             raise HTTPException(status_code=400, detail="No seats available.")
+        try:
+            cabin_class = normalize_cabin_class(request.cabin_class)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Cabin class must be Economy or Premium") from exc
         seat = request.seat_number.strip().upper()
         if not re.fullmatch(r"[0-9]+[A-E]", seat):
             raise HTTPException(status_code=400, detail="Seat number must look like 12A.")
         row = int(seat[:-1])
         if row < 1 or row > (flight.total_seats + 4) // 5:
             raise HTTPException(status_code=400, detail="Seat is outside this flight's seat map.")
+        row_number = int(seat[:-1])
+        seat_cabin = cabin_for_row(flight.total_seats, row_number)
+        if seat_cabin != cabin_class:
+            raise HTTPException(status_code=400, detail=f"Seat {seat} belongs to the {seat_cabin} cabin.")
+
         if db.query(BookingModel).filter(
             BookingModel.flight_id == flight.flight_id,
             BookingModel.seat_number == seat,
@@ -513,12 +546,13 @@ def create_admin_booking(
         db.add(passenger)
         db.flush()
 
-        price = float(flight.base_fare or 0)
+        price = calculate_cabin_fare(flight, cabin_class)
         booking = BookingModel(
             flight_id=flight.flight_id,
             passenger_id=passenger.passenger_id,
             user_id=user.user_id if user else None,
             seat_number=seat,
+            cabin_class=cabin_class,
             status="Confirmed",
             pnr=generate_pnr(),
             price_per_seat=price,
@@ -577,6 +611,9 @@ def update_booking(
             max_row = (flight.total_seats + 4) // 5
             if row_number < 1 or row_number > max_row:
                 raise HTTPException(status_code=400, detail="Seat number is outside this flight's seat map.")
+            booking_cabin = booking.cabin_class or "Economy"
+            if cabin_for_row(flight.total_seats, row_number) != booking_cabin:
+                raise HTTPException(status_code=400, detail=f"Seat {seat} belongs to the {cabin_for_row(flight.total_seats, row_number)} cabin.")
             conflict = db.query(BookingModel).filter(
                 BookingModel.flight_id == booking.flight_id,
                 BookingModel.seat_number == seat,

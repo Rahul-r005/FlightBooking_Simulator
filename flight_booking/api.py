@@ -27,7 +27,7 @@ from .database import (
     initialize_database,
 )
 from .notifications import create_notification
-from .pricing import calculate_dynamic_fare, calculate_legacy_fare, generate_pnr
+from .pricing import calculate_cabin_fare, calculate_dynamic_fare, calculate_legacy_fare, generate_pnr, normalize_cabin_class
 from .schemas import (
     BookingIn,
     BookingOut,
@@ -37,8 +37,10 @@ from .schemas import (
     Flight,
     FlightOut,
     NotificationResponse,
+    SeatMapResponse,
 )
 from .simulator import FlightAvailabilitySimulator
+from .seat_map import cabin_for_row, premium_start_row
 
 
 legacy_now = datetime.now(timezone.utc).replace(tzinfo=None)
@@ -331,6 +333,8 @@ def _flight_response(flight: FlightModel) -> DBFlightResponse:
         base_fare=float(flight.base_fare or 0),
         pricing_tier=flight.pricing_tier or "standard",
         demand=int(flight.simulated_demand or 0),
+        economy_price=calculate_cabin_fare(flight, "Economy"),
+        premium_price=calculate_cabin_fare(flight, "Premium"),
     )
 
 
@@ -342,6 +346,7 @@ def _booking_response(booking: BookingModel) -> DBBookingResponse:
         passenger_id=booking.passenger_id,
         user_id=booking.user_id,
         seat_number=booking.seat_number,
+        cabin_class=booking.cabin_class or "Economy",
         price_per_seat=float(booking.price_per_seat or 0),
         total_price=float(booking.total_price or 0),
         status=booking.status,
@@ -469,6 +474,24 @@ def _find_or_create_passenger(db: Session, request: DBBookingRequest) -> Passeng
     return passenger
 
 
+@app.get("/db/flights/{flight_id}/seats", response_model=SeatMapResponse)
+def db_flight_seats(flight_id: int, db: Session = Depends(get_db)):
+    flight = db.query(FlightModel).filter(FlightModel.flight_id == flight_id).first()
+    if not flight:
+        raise HTTPException(status_code=404, detail="Flight not found")
+    booked = db.query(BookingModel.seat_number).filter(
+        BookingModel.flight_id == flight_id,
+        BookingModel.status != "Cancelled",
+        BookingModel.seat_number.isnot(None),
+    ).all()
+    return SeatMapResponse(
+        flight_id=flight_id,
+        total_seats=flight.total_seats,
+        premium_start_row=premium_start_row(flight.total_seats),
+        booked_seats=[row[0] for row in booked],
+    )
+
+
 @app.post("/db/booking", response_model=DBBookingResponse, status_code=status.HTTP_201_CREATED)
 def db_create_booking(
     request: DBBookingRequest,
@@ -488,7 +511,16 @@ def db_create_booking(
             if flight.available_seats <= 0:
                 raise HTTPException(status_code=400, detail="No seats available")
 
+            try:
+                cabin_class = normalize_cabin_class(request.cabin_class)
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail="Cabin class must be Economy or Premium") from exc
+
             seat_number = _validate_seat(flight, request.seat_number)
+            row_number = int(seat_number[:-1])
+            seat_cabin = cabin_for_row(flight.total_seats, row_number)
+            if seat_cabin != cabin_class:
+                raise HTTPException(status_code=400, detail=f"Seat {seat_number} belongs to the {seat_cabin} cabin.")
             if _seat_is_booked(db, flight.flight_id, seat_number):
                 raise HTTPException(status_code=409, detail="Seat is already booked")
 
@@ -496,7 +528,7 @@ def db_create_booking(
             db.flush()
 
             passenger = _find_or_create_passenger(db, request)
-            price_per_seat = calculate_dynamic_fare(flight)
+            price_per_seat = calculate_cabin_fare(flight, cabin_class)
             payment_success = (
                 bool(request.force_payment_success)
                 if request.force_payment_success is not None
@@ -510,6 +542,7 @@ def db_create_booking(
                 passenger_id=passenger.passenger_id,
                 user_id=user.user_id,
                 seat_number=seat_number,
+                cabin_class=cabin_class,
                 status="Confirmed",
                 pnr=generate_pnr(),
                 price_per_seat=price_per_seat,

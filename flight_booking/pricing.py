@@ -5,6 +5,8 @@ import string
 from .database import FlightModel
 from .schemas import Flight
 
+CABIN_MULTIPLIERS = {"economy": 1.0, "premium": 1.35}
+
 
 def calculate_legacy_fare(flight: Flight) -> float:
     remaining_ratio = flight.available_seats / max(flight.total_seats, 1)
@@ -61,7 +63,21 @@ def calculate_dynamic_fare(flight: FlightModel) -> float:
     return round(base_fare * demand_factor * seat_factor * time_factor * tier_factor, 2)
 
 
-def generate_pnr(length: int = 6) -> str:
+def calculate_cabin_fare(flight: FlightModel, cabin_class: str) -> float:
+    normalized = (cabin_class or "economy").strip().lower()
+    if normalized not in CABIN_MULTIPLIERS:
+        raise ValueError("cabin_class must be economy or premium")
+    return round(calculate_dynamic_fare(flight) * CABIN_MULTIPLIERS[normalized], 2)
+
+
+def normalize_cabin_class(cabin_class: str | None) -> str:
+    normalized = (cabin_class or "Economy").strip().lower()
+    if normalized not in CABIN_MULTIPLIERS:
+        raise ValueError("cabin_class must be Economy or Premium")
+    return normalized.capitalize()
+
+
+def generate_pnr(length: int = 6):
     code = "".join(random.choices(string.ascii_uppercase + string.digits, k=length))
     timestamp = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%m%d%H%M%S")
     return f"{code}{timestamp}"

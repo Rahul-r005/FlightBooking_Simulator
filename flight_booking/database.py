@@ -124,6 +124,7 @@ class BookingModel(Base):
     user_id = Column(Integer, ForeignKey("Users.user_id"), nullable=True, index=True)
     booking_date = Column(DateTime, server_default=func.now(), index=True)
     seat_number = Column(String(5), nullable=True)
+    cabin_class = Column(String(20), nullable=False, default="Economy", server_default="Economy")
     status = Column(String(20), default="Confirmed", index=True)
     pnr = Column(String(20), unique=True, nullable=True, index=True)
     price_per_seat = Column(DECIMAL(10, 2), nullable=True)
@@ -182,6 +183,15 @@ def _add_missing_columns() -> None:
                             'FOREIGN KEY (user_id) REFERENCES "Users" (user_id)'
                         )
                     )
+
+        if "cabin_class" not in booking_columns:
+            with engine.begin() as connection:
+                connection.execute(
+                    text('ALTER TABLE "Bookings" ADD COLUMN cabin_class VARCHAR(20) DEFAULT 'Economy'')
+                )
+                connection.execute(
+                    text('UPDATE "Bookings" SET cabin_class = 'Economy' WHERE cabin_class IS NULL')
+                )
 
     if "Users" in table_names:
         user_columns = {column["name"] for column in inspector.get_columns("Users")}

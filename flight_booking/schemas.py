@@ -52,11 +52,19 @@ class BookingOut(BaseModel):
 
 class DBBookingRequest(BaseModel):
     flight_id: int
+    cabin_class: str = Field(default="Economy", pattern="^(?i:economy|premium)$")
     passenger_name: str = Field(..., min_length=2)
     passenger_email: Optional[EmailStr] = None
     passenger_phone: Optional[str] = None
     seat_number: Optional[str] = None
     force_payment_success: Optional[bool] = None
+
+
+class SeatMapResponse(BaseModel):
+    flight_id: int
+    total_seats: int
+    premium_start_row: int
+    booked_seats: list[str]
 
 
 class DBFlightResponse(BaseModel):
@@ -83,6 +91,7 @@ class DBBookingResponse(BaseModel):
     passenger_id: int
     user_id: Optional[int]
     seat_number: Optional[str]
+    cabin_class: str
     price_per_seat: float
     total_price: float
     status: str
@@ -161,6 +170,7 @@ class AdminBookingCancellationResponse(BaseModel):
 
 class AdminBookingCreate(BaseModel):
     flight_id: int
+    cabin_class: str = Field(default="Economy", pattern="^(?i:economy|premium)$")
     passenger_name: str = Field(..., min_length=2, max_length=100)
     passenger_email: Optional[EmailStr] = None
     passenger_phone: Optional[str] = None
