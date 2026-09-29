@@ -253,3 +253,15 @@ html[data-theme="system"] .settings-card {
   background: color-mix(in srgb, var(--accent) 14%, var(--surface));
   color: var(--accent);
 }
+
+.settings-page { background:var(--page-bg)!important; color:var(--ink)!important; }
+.settings-page .navbar,.settings-card { background:var(--surface)!important; color:var(--ink)!important; border-color:var(--line)!important; }
+.settings-menu a { color:var(--muted)!important; }
+.settings-menu a:hover,.settings-menu a:focus { color:var(--accent)!important; background:color-mix(in srgb,var(--accent) 12%,var(--surface))!important; }
+.settings-badge { background:color-mix(in srgb,var(--accent) 14%,var(--surface))!important; color:var(--accent)!important; }
+.settings-danger { border-color:color-mix(in srgb,var(--danger) 35%,var(--line))!important; }
+.settings-status { color:var(--success); }
+.settings-status.error { color:var(--danger); }
+.settings-page input,.settings-page select,.settings-page textarea {
+  background:var(--control)!important; color:var(--control-text)!important; -webkit-text-fill-color:var(--control-text)!important; border-color:var(--control-border)!important;
+}
