@@ -12,7 +12,8 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="./style.css?v=20260929-final">
+  <script src="./theme.js"></script>
+  <link rel="stylesheet" href="./style.css?v=20260929-product">
 </head>
 <body>
   <header class="navbar">
@@ -72,18 +73,6 @@
       <div id="status" class="status"></div>
     </section>
 
-    <section class="results">
-      <div class="results-top">
-        <h2>Available flights</h2>
-        <select id="sort">
-          <option value="">Sort by</option>
-          <option value="price">Price: low to high</option>
-          <option value="duration">Duration: short to long</option>
-        </select>
-      </div>
-      <div id="flightList" class="flight-list"></div>
-    </section>
-
     <section id="bookings" class="booking-history">
       <div class="section-heading">
         <div>
@@ -96,7 +85,21 @@
     </section>
   </main>
 
-  <div id="modal" class="modal hidden">
+  
+
+    <section class="results">
+      <div class="results-top">
+        <h2>Available flights</h2>
+        <select id="sort">
+          <option value="">Sort by</option>
+          <option value="price">Price: low to high</option>
+          <option value="duration">Duration: short to long</option>
+        </select>
+      </div>
+      <div id="flightList" class="flight-list"></div>
+    </section>
+
+    <div id="modal" class="modal hidden">
     <div class="modal-card">
       <button id="closeModal" class="modal-close" aria-label="Close booking form">×</button>
       <p class="eyebrow">CONFIRM BOOKING</p>
