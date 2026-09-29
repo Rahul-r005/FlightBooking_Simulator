@@ -31,6 +31,7 @@ from .schemas import (
     AdminFlightResponse,
     AdminFlightUpdate,
     AdminTimelineResponse,
+    AdminRoleUpdate,
     UserResponse,
 )
 
