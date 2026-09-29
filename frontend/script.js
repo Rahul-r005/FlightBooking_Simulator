@@ -1,5 +1,5 @@
 function applyStoredTheme() {
-  document.documentElement.dataset.theme = localStorage.getItem("skybook-theme") || "system";
+  document.documentElement.dataset.theme = localStorage.getItem("skybook-theme") === "dark" ? "dark" : "light";
 }
 
 applyStoredTheme();
