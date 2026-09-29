@@ -44,7 +44,8 @@ def sign_in(client: TestClient) -> None:
         json={
             "full_name": "Test User",
             "email": "test@example.com",
-            "password": "correct-horse-battery",
+            "password": "CorrectHorse7Battery",
+            "confirm_password": "CorrectHorse7Battery",
         },
     )
     assert response.status_code == 201, response.text
