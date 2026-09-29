@@ -289,7 +289,12 @@ def delete_flight(flight_id: int, admin: UserModel = Depends(require_admin)):
         ).count()
         if active:
             raise HTTPException(status_code=409, detail="Cannot delete a flight with active bookings. Move or cancel those bookings first.")
-        db.query(BookingModel).filter(BookingModel.flight_id == flight_id).delete(synchronize_session=False)
+        booking_ids = [b.booking_id for b in db.query(BookingModel.booking_id).filter(BookingModel.flight_id == flight_id).all()]
+        if booking_ids:
+            db.query(PaymentModel).filter(PaymentModel.booking_id.in_(booking_ids)).delete(synchronize_session=False)
+            db.query(NotificationModel).filter(NotificationModel.booking_id.in_(booking_ids)).delete(synchronize_session=False)
+            db.query(AdminTimelineModel).filter(AdminTimelineModel.booking_id.in_(booking_ids)).update({AdminTimelineModel.booking_id: None}, synchronize_session=False)
+            db.query(BookingModel).filter(BookingModel.flight_id == flight_id).delete(synchronize_session=False)
         db.delete(flight)
         db.commit()
         return {"message": "Flight deleted."}
@@ -483,6 +488,7 @@ def cancel_booking_as_admin(
             raise HTTPException(status_code=404, detail="Booking not found.")
 
         notification_created = cancel_booking(db, booking, notify_user=True)
+        db.add(AdminTimelineModel(booking_id=booking.booking_id, pnr=booking.pnr, action="cancelled", details="Booking cancelled by administrator; seat returned to inventory.", admin_user_id=admin.user_id))
         db.commit()
         return AdminBookingCancellationResponse(
             message="Booking cancelled and the customer has been notified.",
