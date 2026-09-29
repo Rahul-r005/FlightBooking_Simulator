@@ -12,7 +12,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192x192.png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./style.css?v=20260929-seatmap">
 </head>
 <body>
   <header class="navbar">
@@ -107,10 +107,28 @@
         <label>Passenger name<input id="passengerName" required minlength="2"></label>
         <label>Email<input id="passengerEmail" type="email"></label>
         <label>Phone<input id="passengerPhone"></label>
-        <label>
-          Seat number
-          <input id="seatNumber" required pattern="[0-9]+[A-Ea-e]" maxlength="5" placeholder="e.g. 12A">
-        </label>
+        <div class="cabin-picker" role="group" aria-label="Cabin class">
+          <button type="button" class="cabin-choice active" data-cabin="Economy" id="modalEconomyChoice">
+            <span>Economy</span><strong id="modalEconomyPrice">₹0</strong><small>Standard cabin</small>
+          </button>
+          <button type="button" class="cabin-choice" data-cabin="Premium" id="modalPremiumChoice">
+            <span>Premium</span><strong id="modalPremiumPrice">₹0</strong><small>Premium front zone</small>
+          </button>
+        </div>
+        <div class="seat-picker-panel">
+          <div class="seat-picker-heading">
+            <div><b>Select your seat</b><span id="seatPickerHint">Choose an available seat</span></div>
+            <span id="selectedSeatLabel" class="selected-seat-label">No seat selected</span>
+          </div>
+          <div class="seat-legend">
+            <span><i class="seat-dot available"></i>Available</span>
+            <span><i class="seat-dot selected"></i>Selected</span>
+            <span><i class="seat-dot booked"></i>Booked</span>
+          </div>
+          <div id="seatMap" class="seat-map" aria-label="Seat selection"></div>
+          <input type="hidden" id="seatNumber" required>
+        </div>
+        <input type="hidden" id="cabinClass" value="Economy">
         <button class="primary-btn" type="submit">Confirm & Pay</button>
       </form>
       <div id="bookingStatus" class="status"></div>
