@@ -1,5 +1,7 @@
 function applyStoredTheme() {
-  document.documentElement.dataset.theme = localStorage.getItem("skybook-theme") === "dark" ? "dark" : "light";
+  const saved = localStorage.getItem("skybook-theme");
+  document.documentElement.dataset.theme =
+    saved === "dark" || saved === "light" || saved === "system" ? saved : "system";
 }
 
 applyStoredTheme();
@@ -220,10 +222,9 @@ async function loadBookings() {
           <b>${formatMoney(booking.total_price)}</b>
           <div class="confirmed">${escapeHtml(booking.status)}</div>
           ${booking.status === "Confirmed" ? `
-            <button class="ghost-btn cancel-btn" data-pnr="${escapeHtml(booking.pnr)}">
-              Cancel
-            </button>
+            <button class="ghost-btn cancel-btn" data-pnr="${escapeHtml(booking.pnr)}">Cancel</button>
           ` : ""}
+          <button class="danger-btn delete-user-booking" data-pnr="${escapeHtml(booking.pnr)}">Delete</button>
         </div>
       </div>
     `).join("");
@@ -293,10 +294,27 @@ document.querySelector("#modal").addEventListener("click", (event) => {
   }
 });
 document.querySelector("#bookingForm").addEventListener("submit", submitBooking);
-document.querySelector("#bookingList").addEventListener("click", (event) => {
-  const button = event.target.closest(".cancel-btn");
-  if (button) {
-    cancelBooking(button.dataset.pnr);
+document.querySelector("#bookingList").addEventListener("click", async (event) => {
+  const cancelButton = event.target.closest(".cancel-btn");
+  const deleteButton = event.target.closest(".delete-user-booking");
+  if (cancelButton) {
+    await cancelBooking(cancelButton.dataset.pnr);
+    return;
+  }
+  if (deleteButton) {
+    const pnr = deleteButton.dataset.pnr;
+    const confirmed = window.confirm("WARNING: Permanently delete booking " + pnr + "? This removes the booking and related stored booking details from the database. This action cannot be undone.");
+    if (!confirmed) return;
+    const typed = window.prompt("Final confirmation: type DELETE to permanently remove booking " + pnr + ".");
+    if (typed !== "DELETE") { window.alert("Booking deletion cancelled."); return; }
+    try {
+      await apiRequest("/db/booking/" + encodeURIComponent(pnr) + "/delete", {method: "DELETE"});
+      await loadBookings();
+      await loadFlights();
+      window.alert("Booking " + pnr + " was permanently deleted from the database.");
+    } catch (error) {
+      window.alert(error.message);
+    }
   }
 });
 document.querySelector("#loadBookings").addEventListener("click", loadBookings);
@@ -344,7 +362,7 @@ async function resumePendingBooking() {
     openBooking(
       selected.flight_id,
       selected.airline + " " + selected.flight_number,
-      selected.dynamic_price,
+      params.get("cabin") || "Economy",
     );
     window.history.replaceState({}, document.title, "/");
   }
@@ -352,5 +370,6 @@ async function resumePendingBooking() {
 
 (async function initializeAccountUi() {
   await loadCurrentUser();
+  await loadBookings();
   await resumePendingBooking();
 })();
