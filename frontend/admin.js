@@ -144,7 +144,20 @@ document.querySelector("#bookingFilter").addEventListener("submit", async (event
 accountList.addEventListener("click", async (event) => {
   const statusButton = event.target.closest(".account-status");
   const bookingsButton = event.target.closest(".account-bookings");
+  const roleButton = event.target.closest(".account-role");
   try {
+    if (roleButton) {
+      const currentRole = roleButton.dataset.role;
+      const nextRole = currentRole === "admin" ? "user" : "admin";
+      if (!window.confirm("Change this account role to " + nextRole + "?")) return;
+      await apiRequest(`/admin/accounts/${roleButton.dataset.userId}/role`, {
+        method: "PATCH",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({role: nextRole}),
+      });
+      await loadAccounts(document.querySelector("#accountQuery").value.trim());
+      showStatus("Account role changed to " + nextRole + ".");
+    }
     if (statusButton) {
       const suspended = statusButton.dataset.suspended !== "true";
       await apiRequest(`/admin/accounts/${statusButton.dataset.userId}/status`, {
