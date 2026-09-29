@@ -187,10 +187,10 @@ def _add_missing_columns() -> None:
         if "cabin_class" not in booking_columns:
             with engine.begin() as connection:
                 connection.execute(
-                    text('ALTER TABLE "Bookings" ADD COLUMN cabin_class VARCHAR(20) DEFAULT 'Economy'')
+                    text("ALTER TABLE \"Bookings\" ADD COLUMN cabin_class VARCHAR(20) DEFAULT 'Economy'")
                 )
                 connection.execute(
-                    text('UPDATE "Bookings" SET cabin_class = 'Economy' WHERE cabin_class IS NULL')
+                    text("UPDATE \"Bookings\" SET cabin_class = 'Economy' WHERE cabin_class IS NULL")
                 )
 
     if "Users" in table_names:
