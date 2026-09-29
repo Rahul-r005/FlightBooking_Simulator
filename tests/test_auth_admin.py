@@ -9,7 +9,8 @@ def register(client: TestClient, email: str, name: str) -> None:
         json={
             "full_name": name,
             "email": email,
-            "password": "correct-horse-battery",
+            "password": "CorrectHorse7Battery",
+            "confirm_password": "CorrectHorse7Battery",
         },
     )
     assert response.status_code == 201, response.text
@@ -57,7 +58,8 @@ def test_admin_can_manage_accounts_and_cancel_booking():
             "/auth/login",
             json={
                 "email": "admin@example.com",
-                "password": "correct-horse-battery",
+                "password": "CorrectHorse7Battery",
+            "confirm_password": "CorrectHorse7Battery",
             },
         )
         assert login.status_code == 200, login.text
@@ -85,7 +87,8 @@ def test_admin_can_manage_accounts_and_cancel_booking():
             "/auth/login",
             json={
                 "email": "customer@example.com",
-                "password": "correct-horse-battery",
+                "password": "CorrectHorse7Battery",
+            "confirm_password": "CorrectHorse7Battery",
             },
         )
         assert customer_login.status_code == 200
