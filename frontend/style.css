@@ -176,20 +176,33 @@ label {
   color: #344054;
 }
 
-input, select {
+input,
+select {
   width: 100%;
   margin-top: 8px;
   border: 1px solid #d0d5dd;
   border-radius: 10px;
   padding: 12px 13px;
   background: #fff;
-  color: #101828;
+  color: #101828 !important;
+  -webkit-text-fill-color: #101828 !important;
+  caret-color: #101828;
   outline: none;
 }
 
 input::placeholder {
-  color: #667085;
+  color: #667085 !important;
+  -webkit-text-fill-color: #667085 !important;
   opacity: 1;
+}
+
+/* Keep typed/input values visible even when the browser applies dark-mode or autofill styles. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+select:-webkit-autofill {
+  -webkit-text-fill-color: #101828 !important;
+  caret-color: #101828;
 }
 
 input:focus, select:focus {
@@ -485,8 +498,15 @@ html[data-theme="dark"] .hero {
 html[data-theme="dark"] input,
 html[data-theme="dark"] select {
   background: #101828;
-  color: var(--ink);
+  color: #f2f4f7 !important;
+  -webkit-text-fill-color: #f2f4f7 !important;
+  caret-color: #f2f4f7;
   border-color: #475467;
+}
+
+html[data-theme="dark"] input::placeholder {
+  color: #98a2b3 !important;
+  -webkit-text-fill-color: #98a2b3 !important;
 }
 
 html[data-theme="dark"] .ghost-btn {
@@ -524,12 +544,15 @@ html[data-theme="dark"] .ghost-btn {
   html[data-theme="system"] input,
   html[data-theme="system"] select {
     background: #101828;
-    color: #f2f4f7;
+    color: #f2f4f7 !important;
+    -webkit-text-fill-color: #f2f4f7 !important;
+    caret-color: #f2f4f7;
     border-color: #475467;
   }
 
   html[data-theme="system"] input::placeholder {
-    color: #98a2b3;
+    color: #98a2b3 !important;
+    -webkit-text-fill-color: #98a2b3 !important;
     opacity: 1;
   }
 }
