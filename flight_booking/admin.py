@@ -629,6 +629,19 @@ def update_booking(
             raise HTTPException(status_code=404, detail="Booking not found.")
         changes = []
 
+        requested_cabin = request.cabin_class or booking.cabin_class or "Economy"
+        try:
+            requested_cabin = normalize_cabin_class(requested_cabin)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="Cabin class must be Economy or Premium") from exc
+
+        if request.cabin_class is not None and requested_cabin != (booking.cabin_class or "Economy"):
+            changes.append(f"Cabin changed from {booking.cabin_class or 'Economy'} to {requested_cabin}.")
+            booking.cabin_class = requested_cabin
+
+        if booking.cabin_class not in {"Economy", "Premium"}:
+            booking.cabin_class = requested_cabin
+
         if request.seat_number is not None:
             if booking.status == "Cancelled":
                 raise HTTPException(status_code=400, detail="Cancelled bookings cannot be assigned a seat.")
