@@ -205,3 +205,7 @@ class AdminTimelineResponse(BaseModel):
     admin_user_id: Optional[int]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AdminRoleUpdate(BaseModel):
+    role: str = Field(..., pattern="^(user|admin)$")
