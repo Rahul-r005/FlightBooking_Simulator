@@ -158,7 +158,38 @@ accountList.addEventListener("click", async (event) => {
   const statusButton = event.target.closest(".account-status");
   const bookingsButton = event.target.closest(".account-bookings");
   const roleButton = event.target.closest(".account-role");
+  const deleteButton = event.target.closest(".account-delete");
   try {
+    if (deleteButton) {
+      const email = deleteButton.dataset.email;
+      const confirmed = window.confirm(
+        "WARNING: Permanently delete " + email + "?\n\n" +
+        "This will remove the account, all of its booking records, payments, notifications, " +
+        "sessions, and passenger details that are no longer used. Active booking seats will be returned to inventory. " +
+        "This action cannot be undone."
+      );
+      if (!confirmed) return;
+
+      const typed = window.prompt(
+        "Final confirmation: type DELETE to permanently remove " + email + "."
+      );
+      if (typed !== "DELETE") {
+        showStatus("Account deletion cancelled.");
+        return;
+      }
+
+      const result = await apiRequest(`/admin/accounts/${deleteButton.dataset.userId}`, {
+        method: "DELETE",
+      });
+      await loadAccounts(document.querySelector("#accountQuery").value.trim());
+      await loadBookings();
+      await loadFlights();
+      showStatus(
+        result.deleted_bookings
+          ? email + " was deleted with " + result.deleted_bookings + " booking(s)."
+          : email + " was deleted."
+      );
+    }
     if (roleButton) {
       const currentRole = roleButton.dataset.role;
       const nextRole = currentRole === "admin" ? "user" : "admin";
