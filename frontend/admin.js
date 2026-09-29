@@ -85,7 +85,7 @@ function renderBookings(bookings) {
       </div>
       <div class="admin-actions">
         <span class="status-pill">${escapeHtml(booking.status)}</span>
-        ${booking.status === "Confirmed" ? `<button class="ghost-btn edit-booking" data-pnr="${escapeHtml(booking.pnr)}" data-seat="${escapeHtml(booking.seat_number || "")}">Edit seat</button><button class="ghost-btn cancel-admin" data-pnr="${escapeHtml(booking.pnr)}">Cancel</button>` : ""}
+        ${booking.status === "Confirmed" ? `<button class="ghost-btn edit-booking" data-pnr="${escapeHtml(booking.pnr)}" data-seat="${escapeHtml(booking.seat_number || "")}">Edit</button><button class="ghost-btn cancel-admin" data-pnr="${escapeHtml(booking.pnr)}">Cancel</button>` : ""}
         <button class="ghost-btn timeline-booking" data-pnr="${escapeHtml(booking.pnr)}">Timeline</button>
         <button class="ghost-btn delete-booking" data-pnr="${escapeHtml(booking.pnr)}">Delete</button>
       </div>
@@ -171,7 +171,20 @@ bookingList.addEventListener("click", async (event) => {
   const deleteButton = event.target.closest(".delete-booking");
   const button = event.target.closest(".cancel-admin");
   if (timelineButton) { renderTimeline(await apiRequest("/admin/bookings/" + encodeURIComponent(timelineButton.dataset.pnr) + "/timeline")); showStatus("Booking timeline loaded."); return; }
-  if (editButton) { const seat = window.prompt("New seat number (example: 12A):", editButton.dataset.seat); if (seat === null) return; await apiRequest("/admin/bookings/" + encodeURIComponent(editButton.dataset.pnr), {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({seat_number:seat})}); await loadBookings(); await loadFlights(); showStatus("Seat updated and inventory synchronized."); return; }
+  if (editButton) {
+    const seat = window.prompt("Seat number (example: 12A):", editButton.dataset.seat);
+    if (seat === null) return;
+    const booking = (await apiRequest("/admin/bookings?search=" + encodeURIComponent(editButton.dataset.pnr)))[0];
+    if (!booking) return;
+    const name = window.prompt("Passenger name:", booking.passenger_name);
+    if (name === null) return;
+    const email = window.prompt("Passenger email:", booking.passenger_email || "");
+    if (email === null) return;
+    const price = window.prompt("Total price:", booking.total_price);
+    if (price === null) return;
+    await apiRequest("/admin/bookings/" + encodeURIComponent(editButton.dataset.pnr), {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({seat_number:seat,passenger_name:name,passenger_email:email || null,total_price:Number(price)})});
+    await loadBookings(); await loadFlights(); showStatus("Booking updated and seat inventory synchronized."); return;
+  }
   if (deleteButton) { if (!window.confirm("Delete this booking? Its seat will be returned to inventory.")) return; await apiRequest("/admin/bookings/" + encodeURIComponent(deleteButton.dataset.pnr), {method:"DELETE"}); await loadBookings(); await loadFlights(); showStatus("Booking deleted and inventory updated."); return; }
   if (!button) return;
   if (!window.confirm(`Cancel booking ${button.dataset.pnr}?`)) return;
