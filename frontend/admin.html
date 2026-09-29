@@ -46,7 +46,8 @@
     <section class="admin-section">
       <div class="section-heading">
         <div><p class="eyebrow">BOOKINGS</p><h2>Booking operations</h2></div>
-        <form id="bookingFilter" class="booking-filter">
+      </div>
+      <form id="bookingFilter" class="booking-filter">
           <select id="bookingStatus">
             <option value="">All statuses</option>
             <option value="upcoming">Upcoming</option>
@@ -56,8 +57,7 @@
           <input id="bookingSearch" placeholder="PNR, name or email">
           <button class="ghost-btn" type="submit">Filter</button>
           <button class="ghost-btn" type="button" id="clearCancelledBookings">Clear cancelled</button>
-        </form>
-      </div>
+      </form>
       <div id="bookingList" class="admin-list"></div>
     </section>
 
@@ -69,7 +69,8 @@
         <input id="newPassengerEmail" type="email" placeholder="Passenger email">
         <input id="newPassengerPhone" placeholder="Phone">
         <input id="newCustomerEmail" type="email" placeholder="Existing customer email (optional)">
-        <input id="newSeat" placeholder="Seat e.g. 12A" required>
+        <select id="newBookingCabinClass"><option value="Economy">Economy</option><option value="Premium">Premium</option></select>
+        <div class="seat-input-row"><input id="newSeat" placeholder="Choose a seat" readonly required><button class="ghost-btn" type="button" id="chooseNewSeat">Choose seat</button></div>
         <button class="primary-btn" type="submit">Create booking</button>
       </form>
     </section>
@@ -82,6 +83,15 @@
       <div id="timelineList" class="admin-list"><div class="status">Select a booking timeline.</div></div>
     </section>
   </main>
-  <script src="/admin.js?v=20260929-admin"></script>
+  <div id="adminSeatModal" class="modal hidden">
+    <div class="modal-card seat-modal-card">
+      <button id="closeAdminSeatModal" class="modal-close" aria-label="Close seat picker">×</button>
+      <p class="eyebrow">SEAT SELECTION</p>
+      <h2 id="adminSeatModalTitle">Choose a seat</h2>
+      <div class="seat-legend"><span><i class="seat-dot available"></i>Available</span><span><i class="seat-dot selected"></i>Selected</span><span><i class="seat-dot booked"></i>Booked</span></div>
+      <div id="adminSeatMap" class="seat-map"></div>
+    </div>
+  </div>
+  <script src="/admin.js?v=20260929-seatmap2"></script>
 </body>
 </html>

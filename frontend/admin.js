@@ -4,6 +4,9 @@ const adminAccountList = document.querySelector("#adminAccountList");
 const bookingList = document.querySelector("#bookingList");
 const flightList = document.querySelector("#flightList");
 const timelineList = document.querySelector("#timelineList");
+const adminSeatModal = document.querySelector("#adminSeatModal");
+const adminSeatMap = document.querySelector("#adminSeatMap");
+let adminSeatContext = null;
 
 async function apiRequest(path, options = {}) {
   const response = await fetch(path, {credentials: "include", ...options});
@@ -101,17 +104,14 @@ function renderBookings(bookings) {
     <article class="admin-card">
       <div>
         <strong>${escapeHtml(booking.pnr)}</strong>
-        <div class="muted">
-          ${escapeHtml(booking.flight_number)} · ${escapeHtml(booking.source)} → ${escapeHtml(booking.destination)}
-          · ${escapeHtml(new Date(booking.departure_time).toLocaleString())}
-        </div>
+        <div class="muted">${escapeHtml(booking.flight_number)} · ${escapeHtml(booking.source)} → ${escapeHtml(booking.destination)} · ${escapeHtml(new Date(booking.departure_time).toLocaleString())}</div>
         <div class="muted">${escapeHtml(booking.passenger_name)} · ${escapeHtml(booking.passenger_email || "No email")} · Seat ${escapeHtml(booking.seat_number || "—")}</div>
       </div>
       <div class="admin-actions">
-        <span class="status-pill">${escapeHtml(booking.status)}</span>
-        ${booking.status === "Confirmed" ? `<button class="ghost-btn edit-booking" data-pnr="${escapeHtml(booking.pnr)}" data-seat="${escapeHtml(booking.seat_number || "")}">Edit</button><button class="ghost-btn cancel-admin" data-pnr="${escapeHtml(booking.pnr)}">Cancel</button>` : ""}
+        <span class="status-pill">${escapeHtml(booking.status)} · ${escapeHtml(booking.cabin_class || "Economy")}</span>
+        ${booking.status === "Confirmed" ? `<button class="ghost-btn edit-booking" data-pnr="${escapeHtml(booking.pnr)}">Edit</button><button class="ghost-btn edit-seat" data-pnr="${escapeHtml(booking.pnr)}" data-flight-id="${booking.flight_id}" data-seat="${escapeHtml(booking.seat_number || "")}" data-cabin="${escapeHtml(booking.cabin_class || "Economy")}">Edit seat</button><button class="ghost-btn cancel-admin" data-pnr="${escapeHtml(booking.pnr)}">Cancel</button>` : ""}
         <button class="ghost-btn timeline-booking" data-pnr="${escapeHtml(booking.pnr)}">Timeline</button>
-        <button class="ghost-btn delete-booking" data-pnr="${escapeHtml(booking.pnr)}">Delete</button>
+        <button class="danger-btn delete-booking" data-pnr="${escapeHtml(booking.pnr)}">Delete</button>
       </div>
     </article>
   `).join("");
@@ -248,13 +248,27 @@ document.querySelector(".account-group").parentElement.addEventListener("click",
 
 bookingList.addEventListener("click", async (event) => {
   const timelineButton = event.target.closest(".timeline-booking");
+  const editSeatButton = event.target.closest(".edit-seat");
   const editButton = event.target.closest(".edit-booking");
   const deleteButton = event.target.closest(".delete-booking");
   const button = event.target.closest(".cancel-admin");
   if (timelineButton) { renderTimeline(await apiRequest("/admin/bookings/" + encodeURIComponent(timelineButton.dataset.pnr) + "/timeline")); showStatus("Booking timeline loaded."); return; }
+  if (editSeatButton) {
+    try {
+      const booking = (await apiRequest("/admin/bookings?search=" + encodeURIComponent(editSeatButton.dataset.pnr)))[0];
+      await openAdminSeatPicker({
+        mode: "edit",
+        pnr: editSeatButton.dataset.pnr,
+        flightId: Number(editSeatButton.dataset.flightId),
+        cabinClass: editSeatButton.dataset.cabin,
+        selectedSeat: editSeatButton.dataset.seat,
+      });
+    } catch (error) {
+      showStatus(error.message, true);
+    }
+    return;
+  }
   if (editButton) {
-    const seat = window.prompt("Seat number (example: 12A):", editButton.dataset.seat);
-    if (seat === null) return;
     const booking = (await apiRequest("/admin/bookings?search=" + encodeURIComponent(editButton.dataset.pnr)))[0];
     if (!booking) return;
     const name = window.prompt("Passenger name:", booking.passenger_name);
@@ -281,11 +295,85 @@ bookingList.addEventListener("click", async (event) => {
 });
 
 
+async function openAdminSeatPicker(context) {
+  adminSeatContext = context;
+  const seatData = await apiRequest("/admin/flights/" + context.flightId + "/seats");
+  document.querySelector("#adminSeatModalTitle").textContent = (context.mode === "edit" ? "Edit seat" : "Choose a seat") + " · " + context.cabinClass;
+  renderAdminSeatMap(seatData);
+  adminSeatModal.classList.remove("hidden");
+}
+
+function renderAdminSeatMap(seatData) {
+  const booked = new Set(seatData.booked_seats || []);
+  const rows = Math.ceil(seatData.total_seats / 5);
+  const cabinClass = adminSeatContext.cabinClass;
+  adminSeatMap.innerHTML = Array.from({length: rows}, (_, index) => {
+    const row = index + 1;
+    const cabin = row >= seatData.premium_start_row ? "Premium" : "Economy";
+    return '<div class="seat-row-label">' + row + '</div>' + ["A","B","C","D","E"].map((letter) => {
+      const seat = row + letter;
+      const isSelected = adminSeatContext.selectedSeat === seat;
+      const isBooked = booked.has(seat) && !isSelected;
+      const enabled = cabin === cabinClass && !isBooked;
+      return '<button type="button" class="seat ' + (isBooked ? "booked" : isSelected ? "selected" : "available") + (!enabled ? " cabin-disabled" : "") + '" data-seat="' + seat + '"' + (enabled ? "" : " disabled") + '>' + letter + '</button>';
+    }).join("");
+  }).join("");
+  adminSeatMap.querySelectorAll(".seat:not(.booked):not(.cabin-disabled)").forEach((button) => {
+    button.addEventListener("click", () => chooseAdminSeat(button.dataset.seat));
+  });
+}
+
+async function chooseAdminSeat(seat) {
+  if (!adminSeatContext) return;
+  try {
+    if (adminSeatContext.mode === "new") {
+      document.querySelector("#newSeat").value = seat;
+      adminSeatModal.classList.add("hidden");
+      showStatus("Seat " + seat + " selected.");
+      return;
+    }
+    await apiRequest("/admin/bookings/" + encodeURIComponent(adminSeatContext.pnr), {
+      method: "PATCH",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({seat_number: seat}),
+    });
+    adminSeatModal.classList.add("hidden");
+    await loadBookings();
+    await loadFlights();
+    showStatus("Booking seat changed to " + seat + ".");
+  } catch (error) {
+    showStatus(error.message, true);
+  }
+}
+
+document.querySelector("#closeAdminSeatModal").addEventListener("click", () => adminSeatModal.classList.add("hidden"));
+adminSeatModal.addEventListener("click", (event) => {
+  if (event.target === adminSeatModal) adminSeatModal.classList.add("hidden");
+});
+
+document.querySelector("#chooseNewSeat").addEventListener("click", async () => {
+  try {
+    const flightId = Number(document.querySelector("#newBookingFlight").value);
+    if (!flightId) throw new Error("Select a flight first.");
+    await openAdminSeatPicker({
+      mode: "new",
+      flightId,
+      cabinClass: document.querySelector("#newBookingCabinClass").value,
+      selectedSeat: document.querySelector("#newSeat").value,
+    });
+  } catch (error) {
+    showStatus(error.message, true);
+  }
+});
+document.querySelector("#newBookingCabinClass").addEventListener("change", () => {
+  document.querySelector("#newSeat").value = "";
+});
 document.querySelector("#createBookingForm").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
     await apiRequest("/admin/bookings", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       flight_id:Number(document.querySelector("#newBookingFlight").value),
+      cabin_class:document.querySelector("#newBookingCabinClass").value,
       passenger_name:document.querySelector("#newPassengerName").value.trim(),
       passenger_email:document.querySelector("#newPassengerEmail").value.trim() || null,
       passenger_phone:document.querySelector("#newPassengerPhone").value.trim() || null,

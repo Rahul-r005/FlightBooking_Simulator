@@ -514,49 +514,6 @@ html[data-theme="dark"] .ghost-btn {
   color: var(--ink);
 }
   
-@media (prefers-color-scheme: dark) {
-  html[data-theme="system"] {
-    color-scheme: dark;
-    --ink: #f2f4f7;
-    --muted: #98a2b3;
-    --line: #344054;
-    --bg: #101828;
-    --accent: #84a7ff;
-    --accent2: #6f91e8;
-    --success: #6ce9a6;
-  }
-
-  html[data-theme="system"] body,
-  html[data-theme="system"] .navbar,
-  html[data-theme="system"] .hero-card,
-  html[data-theme="system"] .search-panel,
-  html[data-theme="system"] .flight-card,
-  html[data-theme="system"] .booking-card,
-  html[data-theme="system"] .modal-card {
-    background: #182230;
-    color: #f2f4f7;
-  }
-
-  html[data-theme="system"] .hero {
-    background: linear-gradient(135deg, #151f31, #1c2940);
-  }
-
-  html[data-theme="system"] input,
-  html[data-theme="system"] select {
-    background: #101828;
-    color: #f2f4f7 !important;
-    -webkit-text-fill-color: #f2f4f7 !important;
-    caret-color: #f2f4f7;
-    border-color: #475467;
-  }
-
-  html[data-theme="system"] input::placeholder {
-    color: #98a2b3 !important;
-    -webkit-text-fill-color: #98a2b3 !important;
-    opacity: 1;
-  }
-}
-
 .admin-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:18px; }
 .admin-grid input, .admin-grid select { margin-top:0; }
 .timeline-item { border-left:3px solid var(--accent); padding:12px 16px; background:var(--bg); border-radius:8px; }
@@ -607,3 +564,53 @@ html[data-theme="dark"] .ghost-btn {
   .booking-filter { grid-template-columns: 1fr; }
   .booking-filter button { width: 100%; }
 }
+
+/* Seat map and cabin booking UI */
+.fare-options { display:grid; grid-template-columns:1fr; gap:8px; min-width:280px; }
+.cabin-result { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px 12px; border:1px solid var(--line); border-radius:12px; background:#fff; }
+.cabin-result > div { display:grid; gap:2px; }
+.cabin-result strong { font-size:18px; }
+.cabin-result small { color:var(--muted); }
+.premium-result { background:#fafbff; }
+.cabin-picker { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:18px 0; }
+.cabin-choice { text-align:left; border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:14px; padding:14px; cursor:pointer; }
+.cabin-choice span,.cabin-choice strong,.cabin-choice small { display:block; }
+.cabin-choice strong { margin-top:4px; font-size:18px; }
+.cabin-choice small { color:var(--muted); margin-top:3px; }
+.cabin-choice.active { border-color:var(--accent); box-shadow:0 0 0 3px #3157d51a; }
+.seat-picker-panel { border:1px solid var(--line); border-radius:16px; padding:16px; background:#fbfcff; }
+.seat-picker-heading { display:flex; justify-content:space-between; align-items:center; gap:15px; }
+.seat-picker-heading b,.seat-picker-heading span { display:block; }
+.seat-picker-heading span { color:var(--muted); margin-top:3px; font-size:12px; }
+.selected-seat-label { color:var(--accent)!important; font-weight:800; }
+.seat-legend { display:flex; flex-wrap:wrap; gap:14px; margin:13px 0; color:var(--muted); font-size:12px; }
+.seat-legend span { display:inline-flex; align-items:center; gap:6px; }
+.seat-dot { width:12px; height:12px; border-radius:4px; display:inline-block; border:1px solid #cfd6e4; background:#fff; }
+.seat-dot.selected { background:var(--accent); border-color:var(--accent); }
+.seat-dot.booked { background:#98a2b3; border-color:#98a2b3; }
+.seat-map { display:grid; grid-template-columns:28px repeat(5,38px); gap:7px 8px; justify-content:center; max-height:390px; overflow:auto; padding:12px 6px; }
+.seat-row-label { color:var(--muted); font-size:11px; display:grid; place-items:center; }
+.seat { width:38px; height:34px; border:1px solid #cfd6e4; border-radius:8px; background:#fff; color:var(--ink); font-weight:800; cursor:pointer; }
+.seat.available:hover { border-color:var(--accent); }
+.seat.selected { background:var(--accent); border-color:var(--accent); color:#fff; }
+.seat.booked { background:#98a2b3; border-color:#98a2b3; color:#fff; cursor:not-allowed; }
+.seat.cabin-disabled { opacity:.28; cursor:not-allowed; }
+.seat-map .seat:nth-child(4n) { margin-left:7px; }
+.seat-input-row { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:end; }
+.seat-input-row input { margin-top:0; }
+.seat-input-row button { min-height:44px; white-space:nowrap; }
+.seat-modal-card { width:min(640px,94vw); }
+.account-group { margin-top:20px; padding:20px; border:1px solid var(--line); border-radius:16px; background:#fff; }
+.account-group + .account-group { margin-top:16px; }
+.account-group-heading h3 { margin:0; font-size:20px; }
+.account-card { align-items:flex-start; }
+.account-main { min-width:0; }
+.admin-card .status-pill { white-space:nowrap; }
+.booking-filter { display:grid; grid-template-columns:minmax(150px,220px) minmax(220px,1fr) auto auto; gap:10px; align-items:center; width:100%; margin-top:18px; }
+.booking-filter input,.booking-filter select { width:100%; min-width:0; margin-top:0; }
+.booking-filter button { min-height:44px; white-space:nowrap; }
+.danger-btn { border:1px solid #f0b4b4; background:#fff; color:#b42318; border-radius:10px; padding:10px 13px; font-weight:800; cursor:pointer; }
+@media (max-width:900px) { .fare-options{min-width:0;} .booking-filter{grid-template-columns:1fr 1fr;} }
+@media (max-width:760px) { .cabin-picker{grid-template-columns:1fr;} .booking-filter{grid-template-columns:1fr;} .booking-filter button{width:100%;} .seat-input-row{grid-template-columns:1fr;} .seat-input-row button{width:100%;} .account-card .admin-actions{justify-content:flex-start;} }
+html[data-theme="dark"] .cabin-result,html[data-theme="dark"] .cabin-choice,html[data-theme="dark"] .seat,html[data-theme="dark"] .account-group { background:#182230; color:var(--ink); }
+html[data-theme="dark"] .seat-picker-panel { background:#101828; }
