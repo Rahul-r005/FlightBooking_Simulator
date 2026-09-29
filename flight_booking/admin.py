@@ -18,6 +18,7 @@ from .database import (
     NotificationModel,
     UserModel,
     SessionLocal,
+    SessionModel,
 )
 
 from .notifications import booking_cancelled_message, create_notification
