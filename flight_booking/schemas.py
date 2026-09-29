@@ -161,3 +161,51 @@ class AdminBookingCancellationResponse(BaseModel):
     message: str
     pnr: str
     notification_created: bool
+
+
+class AdminBookingCreate(BaseModel):
+    flight_id: int
+    passenger_name: str = Field(..., min_length=2, max_length=100)
+    passenger_email: Optional[EmailStr] = None
+    passenger_phone: Optional[str] = None
+    user_id: Optional[int] = None
+    user_email: Optional[EmailStr] = None
+    seat_number: str = Field(..., min_length=2, max_length=5)
+
+
+class AdminBookingUpdate(BaseModel):
+    seat_number: Optional[str] = None
+    passenger_name: Optional[str] = None
+    passenger_email: Optional[EmailStr] = None
+    total_price: Optional[float] = None
+
+
+class AdminFlightUpdate(BaseModel):
+    departure_time: Optional[datetime] = None
+    arrival_time: Optional[datetime] = None
+    total_seats: Optional[int] = Field(None, ge=1, le=1000)
+
+
+class AdminFlightResponse(BaseModel):
+    flight_id: int
+    airline: str
+    flight_number: str
+    source: str
+    destination: str
+    departure_time: datetime
+    arrival_time: datetime
+    total_seats: int
+    available_seats: int
+    active_bookings: int
+
+
+class AdminTimelineResponse(BaseModel):
+    timeline_id: int
+    booking_id: Optional[int]
+    pnr: str
+    action: str
+    details: str
+    created_at: datetime
+    admin_user_id: Optional[int]
+
+    model_config = ConfigDict(from_attributes=True)
