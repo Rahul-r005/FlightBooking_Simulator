@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from .auth import require_admin
 from .booking_service import cancel_booking
+from .pricing import generate_pnr
 from .database import (
     AdminTimelineModel,
     AirlineModel,
@@ -352,7 +353,7 @@ def create_admin_booking(
             user_id=user.user_id if user else None,
             seat_number=seat,
             status="Confirmed",
-            pnr=__import__("flight_booking.pricing", fromlist=["generate_pnr"]).generate_pnr(),
+            pnr=generate_pnr(),
             price_per_seat=price,
             total_price=price,
         )
