@@ -121,12 +121,25 @@ document.querySelector("#accountSearch").addEventListener("submit", async (event
 });
 
 document.querySelector("#clearCancelledBookings").addEventListener("click", async () => {
-  const statusSelect = document.querySelector("#bookingStatus");
-  statusSelect.value = "upcoming";
-  document.querySelector("#bookingSearch").value = "";
+  const confirmed = window.confirm(
+    "WARNING: This will permanently delete ALL cancelled bookings and their related booking details from the database. " +
+    "This action cannot be undone. Continue?"
+  );
+  if (!confirmed) return;
+
   try {
+    const result = await apiRequest("/admin/bookings/cancelled", {
+      method: "DELETE",
+    });
+    document.querySelector("#bookingStatus").value = "";
+    document.querySelector("#bookingSearch").value = "";
     await loadBookings();
-    showStatus("Cancelled bookings cleared from the admin view. They remain in the database for history.");
+    await loadFlights();
+    showStatus(
+      result.deleted_count
+        ? result.deleted_count + " cancelled booking(s) and their related details were permanently deleted."
+        : "No cancelled bookings were found."
+    );
   } catch (error) {
     showStatus(error.message, true);
   }
