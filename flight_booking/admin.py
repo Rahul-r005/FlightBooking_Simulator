@@ -110,6 +110,92 @@ def account_detail(user_id: int, admin: UserModel = Depends(require_admin)):
         db.close()
 
 
+@router.delete("/accounts/{user_id}")
+def delete_account(user_id: int, admin: UserModel = Depends(require_admin)):
+    """Permanently delete a customer/admin account and its owned booking data."""
+    if user_id == admin.user_id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own administrator account.")
+
+    db = SessionLocal()
+    try:
+        user = db.get(UserModel, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="Account not found.")
+
+        bookings = db.query(BookingModel).filter(BookingModel.user_id == user_id).all()
+        booking_ids = [booking.booking_id for booking in bookings]
+        passenger_ids = {
+            booking.passenger_id
+            for booking in bookings
+            if booking.passenger_id is not None
+        }
+
+        # Return seats for active bookings. Cancelled bookings have already
+        # returned their seats when cancellation was performed.
+        for booking in bookings:
+            if booking.status != "Cancelled":
+                flight = db.get(FlightModel, booking.flight_id)
+                if flight:
+                    flight.available_seats = min(
+                        flight.total_seats,
+                        flight.available_seats + 1,
+                    )
+
+        if booking_ids:
+            db.query(PaymentModel).filter(
+                PaymentModel.booking_id.in_(booking_ids)
+            ).delete(synchronize_session=False)
+            db.query(NotificationModel).filter(
+                NotificationModel.booking_id.in_(booking_ids)
+            ).delete(synchronize_session=False)
+            db.query(AdminTimelineModel).filter(
+                AdminTimelineModel.booking_id.in_(booking_ids)
+            ).delete(synchronize_session=False)
+            db.query(BookingModel).filter(
+                BookingModel.booking_id.in_(booking_ids)
+            ).delete(synchronize_session=False)
+
+        # Remove sessions so the deleted account cannot continue using an
+        # existing login token.
+        db.query(SessionModel).filter(
+            SessionModel.user_id == user_id
+        ).delete(synchronize_session=False)
+
+        # Keep audit history created by this administrator, but detach it
+        # from the deleted user account.
+        db.query(AdminTimelineModel).filter(
+            AdminTimelineModel.admin_user_id == user_id
+        ).update(
+            {AdminTimelineModel.admin_user_id: None},
+            synchronize_session=False,
+        )
+
+        db.delete(user)
+        db.flush()
+
+        # Passenger records are owned by booking records. Delete only those
+        # no longer referenced by any remaining booking.
+        for passenger_id in passenger_ids:
+            still_used = db.query(BookingModel.booking_id).filter(
+                BookingModel.passenger_id == passenger_id
+            ).first()
+            if not still_used:
+                db.query(PassengerModel).filter(
+                    PassengerModel.passenger_id == passenger_id
+                ).delete(synchronize_session=False)
+
+        db.commit()
+        return {
+            "message": "Account and its booking details were permanently deleted.",
+            "deleted_bookings": len(booking_ids),
+        }
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
 @router.get("/accounts/{user_id}/bookings", response_model=list[AdminBookingResponse])
 def account_bookings(user_id: int, admin: UserModel = Depends(require_admin)):
     db = SessionLocal()
