@@ -53,6 +53,27 @@
       </div>
       <div id="bookingList" class="admin-list"></div>
     </section>
+
+    <section class="admin-section">
+      <div class="section-heading"><div><p class="eyebrow">CREATE</p><h2>Add a booking</h2></div></div>
+      <form id="createBookingForm" class="admin-grid">
+        <select id="newBookingFlight" required><option value="">Select flight</option></select>
+        <input id="newPassengerName" placeholder="Passenger name" required>
+        <input id="newPassengerEmail" type="email" placeholder="Passenger email">
+        <input id="newPassengerPhone" placeholder="Phone">
+        <input id="newCustomerEmail" type="email" placeholder="Existing customer email (optional)">
+        <input id="newSeat" placeholder="Seat e.g. 12A" required>
+        <button class="primary-btn" type="submit">Create booking</button>
+      </form>
+    </section>
+    <section class="admin-section">
+      <div class="section-heading"><div><p class="eyebrow">SCHEDULES</p><h2>Flight timeline & seating</h2></div><button class="ghost-btn" type="button" id="refreshFlights">Refresh</button></div>
+      <div id="flightList" class="admin-list"></div>
+    </section>
+    <section class="admin-section">
+      <div class="section-heading"><div><p class="eyebrow">AUDIT TIMELINE</p><h2>Booking change history</h2></div></div>
+      <div id="timelineList" class="admin-list"><div class="status">Select a booking timeline.</div></div>
+    </section>
   </main>
   <script src="/admin.js"></script>
 </body>
