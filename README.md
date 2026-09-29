@@ -162,13 +162,31 @@ Bookings are authenticated server-side. Users create an account or sign in befor
 
 Every new booking stores the authenticated user ID in Bookings.user_id. Booking history, booking lookup, payment, receipt generation, and cancellation enforce ownership on the server.
 
-Administrators use the /admin page. Every admin API route checks the user's role server-side. Existing accounts default to role=user. To promote an existing account, run:
+Administrators use the /admin page. Every admin API route checks the user's role server-side. Existing accounts default to role=user.
+
+### One-time initial admin promotion on Render
+
+The repository includes a one-time promotion script at `scripts/promote_admin.py`. It is intentionally not exposed as an HTTP endpoint and it targets only the configured initial administrator account.
+
+Before running it in the Render service shell, add these temporary environment variables to the **flightbooking-api** service:
+
+- `ADMIN_PROMOTION_TOKEN` = the one-time token supplied for this deployment
+- `ADMIN_PROMOTION_CONFIRM` = `PROMOTE_INITIAL_ADMIN`
+
+Then open the Render service's Shell and run:
 
 ```bash
-python scripts/promote_admin.py user@example.com
+python scripts/promote_admin.py
 ```
 
-The command only changes an existing account and contains no built-in credentials.
+The script:
+- requires the token and verifies its SHA-256 digest;
+- only targets the initial administrator email configured in the script;
+- refuses to run again after a successful promotion by recording a database audit marker;
+- uses a database transaction, so a failed promotion is rolled back;
+- never creates a user or changes a password.
+
+After the command succeeds, remove `ADMIN_PROMOTION_TOKEN` and `ADMIN_PROMOTION_CONFIRM` from the Render service environment. The normal application does not read either variable.
 
 Admin cancellation preserves the booking as Cancelled, restores inventory, and creates an in-app notification for the affected customer. The repository did not contain an email provider, so no email dependency or secret was added.
 
