@@ -301,20 +301,18 @@ document.querySelector("#bookingList").addEventListener("click", async (event) =
     await cancelBooking(cancelButton.dataset.pnr);
     return;
   }
-  if (deleteButton) {
-    const pnr = deleteButton.dataset.pnr;
-    const confirmed = window.confirm("WARNING: Permanently delete booking " + pnr + "? This removes the booking and related stored booking details from the database. This action cannot be undone.");
-    if (!confirmed) return;
-    const typed = window.prompt("Final confirmation: type DELETE to permanently remove booking " + pnr + ".");
-    if (typed !== "DELETE") { window.alert("Booking deletion cancelled."); return; }
-    try {
-      await apiRequest("/db/booking/" + encodeURIComponent(pnr) + "/delete", {method: "DELETE"});
-      await loadBookings();
-      await loadFlights();
-      window.alert("Booking " + pnr + " was permanently deleted from the database.");
-    } catch (error) {
-      window.alert(error.message);
-    }
+  if (!deleteButton) return;
+  const pnr = deleteButton.dataset.pnr;
+  if (!window.confirm("WARNING: Permanently delete booking " + pnr + "? This removes the booking and related details from the database. This cannot be undone.")) return;
+  const typed = window.prompt("Final confirmation: type DELETE to permanently remove booking " + pnr + ".");
+  if (typed !== "DELETE") return;
+  try {
+    await apiRequest("/db/booking/" + encodeURIComponent(pnr) + "/delete", {method:"DELETE"});
+    await loadBookings();
+    await loadFlights();
+    window.alert("Booking " + pnr + " was permanently deleted from the database.");
+  } catch (error) {
+    window.alert(error.message);
   }
 });
 document.querySelector("#loadBookings").addEventListener("click", loadBookings);
