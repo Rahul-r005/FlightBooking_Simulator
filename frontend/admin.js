@@ -1,5 +1,6 @@
 const statusElement = document.querySelector("#adminStatus");
-const accountList = document.querySelector("#accountList");
+const customerAccountList = document.querySelector("#customerAccountList");
+const adminAccountList = document.querySelector("#adminAccountList");
 const bookingList = document.querySelector("#bookingList");
 const flightList = document.querySelector("#flightList");
 const timelineList = document.querySelector("#timelineList");
@@ -27,25 +28,48 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function renderAccounts(accounts) {
-  if (!accounts.length) {
-    accountList.innerHTML = '<div class="status">No accounts found.</div>';
-    return;
-  }
-  accountList.innerHTML = accounts.map((account) => `
-    <article class="admin-card">
-      <div>
+function renderAccountCard(account) {
+  const isAdmin = account.role === "admin";
+  return `
+    <article class="admin-card account-card">
+      <div class="account-main">
         <strong>${escapeHtml(account.full_name)}</strong>
-        <div class="muted">${escapeHtml(account.email)} · ${account.booking_count} booking(s) · ${escapeHtml(account.role)}</div>
+        <div class="muted">${escapeHtml(account.email)} · ${account.booking_count} booking(s)</div>
       </div>
       <div class="admin-actions">
+        <span class="status-pill">${isAdmin ? "admin" : "user"}${account.suspended ? " · suspended" : ""}</span>
         <button class="ghost-btn account-bookings" data-user-id="${account.user_id}">View bookings</button>
+        <button class="ghost-btn account-role" data-user-id="${account.user_id}" data-role="${account.role}">
+          ${isAdmin ? "Make user" : "Make admin"}
+        </button>
+        <button class="danger-btn account-delete" data-user-id="${account.user_id}" data-email="${escapeHtml(account.email)}">Delete account</button>
         <button class="ghost-btn account-status" data-user-id="${account.user_id}" data-suspended="${account.suspended}">
           ${account.suspended ? "Reactivate" : "Suspend"}
         </button>
       </div>
     </article>
-  `).join("");
+  `;
+}
+
+function renderAccountGroup(listElement, accounts, emptyMessage) {
+  if (!accounts.length) {
+    listElement.innerHTML = '<div class="status">' + emptyMessage + '</div>';
+    return;
+  }
+  listElement.innerHTML = accounts.map(renderAccountCard).join("");
+}
+
+function renderAccounts(accounts) {
+  renderAccountGroup(
+    document.querySelector("#customerAccountList"),
+    accounts.filter((account) => account.role !== "admin"),
+    "No customer accounts found."
+  );
+  renderAccountGroup(
+    document.querySelector("#adminAccountList"),
+    accounts.filter((account) => account.role === "admin"),
+    "No administrator accounts found."
+  );
 }
 
 function renderFlights(flights) {
@@ -154,7 +178,7 @@ document.querySelector("#bookingFilter").addEventListener("submit", async (event
   }
 });
 
-accountList.addEventListener("click", async (event) => {
+document.querySelector(".account-group").parentElement.addEventListener("click", async (event) => {
   const statusButton = event.target.closest(".account-status");
   const bookingsButton = event.target.closest(".account-bookings");
   const roleButton = event.target.closest(".account-role");

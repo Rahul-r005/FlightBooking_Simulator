@@ -28,18 +28,25 @@
     <div id="adminStatus" class="status"></div>
     <section class="admin-section">
       <div class="section-heading">
-        <div><p class="eyebrow">ACCOUNTS</p><h2>Customer accounts</h2></div>
+        <div><p class="eyebrow">ACCOUNTS</p><h2>Account management</h2><p class="muted">Customers and administrators are managed separately.</p></div>
         <form id="accountSearch" class="inline-form">
           <input id="accountQuery" placeholder="Search name or email">
           <button class="ghost-btn" type="submit">Search</button>
         </form>
       </div>
-      <div id="accountList" class="admin-list"></div>
+      <div class="account-group">
+        <div class="account-group-heading"><div><p class="eyebrow">CUSTOMERS</p><h3>Customer accounts</h3></div></div>
+        <div id="customerAccountList" class="admin-list"></div>
+      </div>
+      <div class="account-group">
+        <div class="account-group-heading"><div><p class="eyebrow">ADMINISTRATORS</p><h3>Admin accounts</h3></div></div>
+        <div id="adminAccountList" class="admin-list"></div>
+      </div>
     </section>
     <section class="admin-section">
       <div class="section-heading">
         <div><p class="eyebrow">BOOKINGS</p><h2>Booking operations</h2></div>
-        <form id="bookingFilter" class="inline-form">
+        <form id="bookingFilter" class="booking-filter">
           <select id="bookingStatus">
             <option value="">All statuses</option>
             <option value="upcoming">Upcoming</option>

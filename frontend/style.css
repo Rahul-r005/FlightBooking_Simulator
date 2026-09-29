@@ -565,3 +565,45 @@ html[data-theme="dark"] .ghost-btn {
 @media (max-width:560px){ .admin-grid{grid-template-columns:1fr;} }
 
 .account-actions { display:flex; flex-wrap:wrap; gap:8px; }
+
+/* Admin account layout and responsive booking filters */
+.account-group {
+  margin-top: 22px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface, #fff);
+}
+.account-group + .account-group { margin-top: 16px; }
+.account-group-heading h3 { margin: 0; font-size: 20px; }
+.account-card { align-items: flex-start; }
+.account-main { min-width: 0; }
+.danger-btn {
+  border: 1px solid #f0b4b4;
+  background: #fff;
+  color: #b42318;
+  border-radius: 10px;
+  padding: 10px 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.booking-filter {
+  display: grid;
+  grid-template-columns: minmax(170px, 220px) minmax(220px, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  width: min(760px, 100%);
+}
+.booking-filter input,
+.booking-filter select { width: 100%; margin-top: 0; min-width: 0; }
+.booking-filter button { white-space: nowrap; min-height: 44px; }
+@media (max-width: 900px) {
+  .section-heading { align-items: flex-start; }
+  .booking-filter { grid-template-columns: 1fr 1fr; width: 100%; }
+}
+@media (max-width: 760px) {
+  .account-card { align-items: stretch; }
+  .account-card .admin-actions { width: 100%; }
+  .booking-filter { grid-template-columns: 1fr; }
+  .booking-filter button { width: 100%; }
+}
